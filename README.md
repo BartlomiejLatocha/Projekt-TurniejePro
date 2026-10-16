@@ -26,7 +26,6 @@ Aplikacja webowa do organizacji turniejów sportowych: tworzenie turniejów, zg�
 
 ## Struktura repozytorium
 
-```
 TurniejePro/
 ├── src/
 │   ├── TurniejePro.Domain/    # encje i logika domenowa
@@ -36,9 +35,11 @@ TurniejePro/
 ├── tests/
 │   └── TurniejePro.Tests/     # testy jednostkowe i integracyjne
 ├── .github/                   # CI, szablon PR, CODEOWNERS
+├── .editorconfig              # jednolity styl kodu w zespole
+├── .gitignore                 # pliki wyłączone z repozytorium
 ├── Directory.Build.props      # wspólne ustawienia (nullable, analizatory)
+├── TurniejePro.slnx           # solution
 └── README.md
-```
 
 ## Uruchomienie lokalne
 

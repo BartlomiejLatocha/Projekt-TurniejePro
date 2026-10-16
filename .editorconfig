@@ -1,0 +1,59 @@
+# EditorConfig pomagający utrzymać jednolity styl kodu w całym zespole
+# Dokumentacja: https://editorconfig.org
+
+root = true
+
+# ==========================================
+# Ustawienia ogólne dla wszystkich plików
+# ==========================================
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
+
+# ==========================================
+# Pliki kodu źródłowego (C#, XML itp.)
+# ==========================================
+[*.{cs,vb}]
+indent_style = space
+indent_size = 4
+
+# --- Reguły stylu C# (.NET Conventions) ---
+
+# Preferuj używanie wbudowanych typów zamiast aliasów (np. string zamiast String)
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+
+# Modyfikatory dostępu: wymagaj jawnego określenia (np. private void zamiast void)
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:suggestion
+
+# Używanie "var" gdy typ jest jawny po prawej stronie
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Preferuj składowe wyrażeniowe (Expression-bodied members) tam, gdzie to możliwe
+csharp_style_expression_bodied_methods = true:suggestion
+csharp_style_expression_bodied_constructors = false:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+
+# Przestrzenie nazw (Namespaces)
+# Blokowe przestrzenie nazw (file-scoped namespaces - nowość w C# 10+)
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Nazewnictwo (Naming Conventions)
+# Prywatne pola z podkreśleniem _camelCase
+dotnet_naming_rule.private_member_should_be_underscored_csharp = 1
+dotnet_naming_style.underscore_camel_case_style.required_prefix = _
+dotnet_naming_style.underscore_camel_case_style.capitalization = camel_case
+dotnet_naming_symbol.private_fields_and_properties.applicable_kinds = field, property
+dotnet_naming_symbol.private_fields_and_properties.applicable_accessibilities = private, internal
+dotnet_naming_rule.private_member_should_be_underscored_csharp.symbol = private_fields_and_properties
+dotnet_naming_rule.private_member_should_be_underscored_csharp.style = underscore_camel_case_style
+
+# ==========================================
+# Konfiguracja plików konfiguracyjnych (JSON, YAML)
+# ==========================================
+[*.{json,yml,yaml}]
+indent_style = space
+indent_size = 2
