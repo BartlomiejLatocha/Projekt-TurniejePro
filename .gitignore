@@ -66,6 +66,10 @@ Generated\ Files/
 [Bb]uild[Ll]og.*
 *.trx
 
+#Dodatkowe wyniki testów i raporty pokrycia
+TestResults/
+coverage-report/
+
 # NUnit
 *.VisualState.xml
 TestResult.xml

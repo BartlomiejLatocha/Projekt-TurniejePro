@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+
+          <!-- Mierzymy kod produkcyjny (backend). Projekt Blazor dodaj tu dopiero,
+               gdy zespół zdecyduje, że UI jest objęty progiem (np. testy bUnit). -->
+          <Include>[TurniejePro.Domain]*,[TurniejePro.Data]*,[TurniejePro.Api]*</Include>
+
+          <!-- Pliki, których nie ma sensu testować jednostkowo -->
+          <ExcludeByFile>**/Migrations/**/*.cs,**/Program.cs,**/obj/**/*.cs</ExcludeByFile>
+
+          <!-- Kod generowany automatycznie i jawnie wyłączony z pokrycia -->
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+
+          <!-- Automatyczne właściwości (get; set;) nie liczą się do pokrycia -->
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
