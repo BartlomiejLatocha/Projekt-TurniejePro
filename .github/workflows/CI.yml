@@ -16,6 +16,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Minimalne pokrycie linii kodu (w procentach)
+  COVERAGE_THRESHOLD: 80
+
 jobs:
   build-and-test:
     name: build-and-test
@@ -31,19 +35,39 @@ jobs:
         with:
           dotnet-version: 10.0.401
 
+      - name: Przywrócenie narzędzi (ReportGenerator)
+        run: dotnet tool restore
+
       - name: Restore
         run: dotnet restore TurniejePro.slnx
 
       - name: Build
         run: dotnet build TurniejePro.slnx --configuration Release --no-restore
 
-      - name: Testy xUnit
+      - name: Testy xUnit z pomiarem pokrycia
         run: >
           dotnet test TurniejePro.slnx
           --configuration Release
           --no-build
+          --settings coverage.runsettings
+          --collect:"XPlat Code Coverage"
           --logger "trx;LogFileName=test-results.trx"
           --results-directory ./TestResults
+
+      - name: Generowanie raportu pokrycia
+        if: always()
+        run: >
+          dotnet tool run reportgenerator
+          -reports:"TestResults/**/coverage.cobertura.xml"
+          -targetdir:coverage-report
+          -reporttypes:"HtmlInline;Cobertura;MarkdownSummaryGithub"
+
+      - name: Podsumowanie pokrycia w zakładce przebiegu
+        if: always()
+        run: |
+          if [ -f coverage-report/SummaryGithub.md ]; then
+            cat coverage-report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Zapis wyników testów
         if: always()
@@ -52,3 +76,27 @@ jobs:
           name: test-results
           path: TestResults/**/*.trx
           if-no-files-found: ignore
+
+      - name: Zapis raportu pokrycia (HTML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report/
+          if-no-files-found: ignore
+
+      - name: Sprawdzenie progu pokrycia
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          import xml.etree.ElementTree as ET
+
+          threshold = float(os.environ["COVERAGE_THRESHOLD"])
+          root = ET.parse("coverage-report/Cobertura.xml").getroot()
+          percent = float(root.get("line-rate")) * 100
+
+          print(f"Pokrycie linii: {percent:.2f}% (wymagane: {threshold:.0f}%)")
+          if percent < threshold:
+              print(f"::error::Pokrycie kodu {percent:.2f}% jest niższe niż wymagane {threshold:.0f}%.")
+              sys.exit(1)
+          PY
