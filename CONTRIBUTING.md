@@ -8,6 +8,7 @@ Dokument opisuje, jak wprowadzamy zmiany w projekcie TurniejePro. Obowiązuje ws
 - Każda zmiana powstaje na osobnej gałęzi, powiązanej z zadaniem w Jirze.
 - Do `main` trafia tylko kod, który przeszedł Pull Request (PR) i został zatwierdzony przez co najmniej jedną inną osobę.
 - `main` ma być zawsze w stanie, który się buduje i przechodzi testy.
+- Kod wprowadzany razem z testami, bo PR bez nich może nie przejść progu.
 
 ## Nazewnictwo
 
@@ -98,6 +99,7 @@ W opisie PR wypełniamy szablon (zadanie, co zmieniono, jak przetestować, check
 
 - [ ] Projekt buduje się bez błędów i ostrzeżeń (`dotnet build`)
 - [ ] Testy przechodzą (`dotnet test`)
+- [ ] Nowy kod ma testy, pokrycie ≥ 80%
 - [ ] W commicie nie ma plików tymczasowych ani sekretów (sprawdź `git status` i `git diff`)
 - [ ] Zmiany dotyczą tylko tego zadania
 - [ ] Dokumentacja (README, opisy) jest zaktualizowana, jeśli to potrzebne
