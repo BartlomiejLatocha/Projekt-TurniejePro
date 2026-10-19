@@ -28,10 +28,13 @@ Aplikacja webowa do organizacji turniejów sportowych: tworzenie turniejów, zg�
 ## Struktura repozytorium
 
 ```
-Projekt-TurniejePro/
+Projekt-TurniejePro/           
+├── docs/                      
+│   ├── api-contracts.md       # konwencje i katalog kontraktów
 ├── src/
 │   ├── TurniejePro.Domain/    # encje i logika domenowa
 │   ├── TurniejePro.Data/      # EF Core, migracje, repozytoria
+│   ├── TurniejePro.Contracts/ # wspólne DTO (API i Blazor)
 │   ├── TurniejePro.Api/       # REST API
 │   └── TurniejePro.Blazor/    # interfejs użytkownika
 ├── tests/

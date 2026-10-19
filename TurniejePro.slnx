@@ -8,6 +8,7 @@
   <Folder Name="/src/">
     <Project Path="src/TurniejePro.API/TurniejePro.Api.csproj" Id="b7dac954-0d3b-4797-92d1-3397494b5e01" />
     <Project Path="src/TurniejePro.Blazor/TurniejePro.Blazor.csproj" Id="9bc2e0fa-8e3a-48b2-bb9d-7336a06ebf4f" />
+    <Project Path="src/TurniejePro.Contracts/TurniejePro.Contracts.csproj" Id="47a2a081-2ebf-4839-bb94-9a3eb775dbb2" />
     <Project Path="src/TurniejePro.Data/TurniejePro.Data.csproj" Id="2115ce1d-6c50-470c-8aa0-d81fde92369f" />
     <Project Path="src/TurniejePro.Domain/TurniejePro.Domain.csproj" Id="47938e94-fadc-41b3-97c3-534c4cea99f5" />
   </Folder>
