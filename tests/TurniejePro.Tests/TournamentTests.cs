@@ -1,5 +1,8 @@
-using Xunit;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using TurniejePro.Api.Controllers;
 using TurniejePro.Domain;
+using Xunit;
 
 namespace TurniejePro.Tests;
 
@@ -17,5 +20,22 @@ public class TournamentTests
         // Assert (Sprawdzenie - weryfikujemy stan)
         Assert.Equal(tournamentName, tournament.Name);
         Assert.False(tournament.IsStarted); // Nowy turniej nie powinien być jeszcze rozpoczęty
+    }
+}
+
+public class HealthControllerTests
+{
+    [Fact]
+    public void GetShouldReturnOkWithHealthyStatus()
+    {
+        // Arrange
+        var controller = new HealthController();
+
+        // Act
+        var result = controller.Get();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(StatusCodes.Status200OK, okResult.StatusCode);
     }
 }
