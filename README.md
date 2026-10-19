@@ -1,4 +1,5 @@
 # Projekt-TurniejePro
+
 Projekt zespołowy aplikacji internetowych
 
 Aplikacja webowa do organizacji turniejów sportowych: tworzenie turniejów, zgłaszanie drużyn, generowanie terminarza (liga i puchar), wprowadzanie wyników oraz automatyczna tabela.
@@ -17,16 +18,17 @@ Aplikacja webowa do organizacji turniejów sportowych: tworzenie turniejów, zg�
 
 ## Technologie
 
-- .NET (wersja: 10) / C#
+- .NET 10 / C#
 - ASP.NET Core Web API (dokumentacja: Swagger/OpenAPI)
 - Blazor (wariant: `TODO`)
 - Entity Framework Core, ASP.NET Core Identity
 - Baza danych: `TODO`
-- xUnit (testy), GitHub Actions (CI)
+- xUnit (testy), coverlet + ReportGenerator (pokrycie kodu), GitHub Actions (CI)
 
 ## Struktura repozytorium
 
-TurniejePro/
+```
+Projekt-TurniejePro/
 ├── src/
 │   ├── TurniejePro.Domain/    # encje i logika domenowa
 │   ├── TurniejePro.Data/      # EF Core, migracje, repozytoria
@@ -34,26 +36,33 @@ TurniejePro/
 │   └── TurniejePro.Blazor/    # interfejs użytkownika
 ├── tests/
 │   └── TurniejePro.Tests/     # testy jednostkowe i integracyjne
-├── .github/                   # CI, szablon PR, CODEOWNERS
+├── .config/                   # manifest narzędzi dotnet (ReportGenerator)
+├── .github/
+│   ├── workflows/             # pipeline CI (build, testy, pokrycie)
+│   ├── CODEOWNERS             # właściciele kodu i wymagane review
+│   └── pull_request_template.md
 ├── .editorconfig              # jednolity styl kodu w zespole
 ├── .gitignore                 # pliki wyłączone z repozytorium
+├── CONTRIBUTING.md            # zasady pracy z repozytorium
 ├── Directory.Build.props      # wspólne ustawienia (nullable, analizatory)
+├── coverage.runsettings       # konfiguracja pomiaru pokrycia kodu
 ├── TurniejePro.slnx           # solution
 └── README.md
+```
 
 ## Uruchomienie lokalne
 
 ### Wymagania
 
-- [.NET SDK](https://dotnet.microsoft.com/download) (wersja jak wyżej)
-- Visual Studio 2022 lub nowsze (albo VS Code / Rider)
+- [.NET SDK](https://dotnet.microsoft.com/download) 10
+- Visual Studio w wersji obsługującej .NET 10 (albo VS Code / Rider)
 - Git
 
 ### Kroki
 
 ```bash
-git clone https://github.com/<organizacja-lub-konto>/TurniejePro.git
-cd TurniejePro
+git clone https://github.com/<organizacja-lub-konto>/Projekt-TurniejePro.git
+cd Projekt-TurniejePro
 dotnet restore
 dotnet build
 dotnet test
@@ -82,12 +91,12 @@ dotnet user-secrets set "ConnectionStrings:Default" "<twój connection string>" 
 ## Zasady pracy zespołu
 
 - Gałąź `main` jest chroniona: zmiany wyłącznie przez Pull Request z min. 1 zatwierdzeniem (code review).
-- Nazwy gałęzi: `feature/<klucz-zadania>-krótki-opis`, np. `feature/TA-01.1.1-szkielet-solution`.
-- Klucz zadania z Jiry umieszczamy w nazwie gałęzi i w opisie PR.
+- Nazwy gałęzi: klucz zadania z Jiry, np. `KAN-49`.
+- Komunikaty commitów i tytuły PR zaczynają się od klucza zadania, np. `KAN-49: opis zmiany`.
 - Scalanie metodą *Squash and merge*.
-- Pull Request musi przejść build i testy w CI przed scaleniem.
+- Pull Request musi przejść w CI build, testy i próg pokrycia kodu (≥ 80%) przed scaleniem.
 
-Szczegóły: `CONTRIBUTING.md` (do uzupełnienia).
+Szczegóły: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Zespół
 
@@ -101,8 +110,44 @@ Szczegóły: `CONTRIBUTING.md` (do uzupełnienia).
 ## Dokumentacja
 
 - Backlog i zadania: Jira (`TODO: link`)
-- API: Swagger UI pod `/swagger` po uruchomieniu API
+- API: [Swagger / OpenAPI](#dokumentacja-api-swagger--openapi) (po lokalnym uruchomieniu API)
 - Wdrożenie: instrukcja zostanie dodana w ramach zadania FE-10.2
+
+## Dokumentacja API (Swagger / OpenAPI)
+
+API ma interaktywną dokumentację i maszynowo czytelną specyfikację. Obie są dostępne tylko w środowisku **Development**, czyli po lokalnym uruchomieniu API.
+
+### Jak otworzyć
+
+1. Uruchom API: F5 w Visual Studio (projekt startowy `TurniejePro.Api`, profil `https`) albo w terminalu:
+
+   ```bash
+   dotnet run --project src/TurniejePro.Api
+   ```
+
+2. Port odczytasz z konsoli (linia `Now listening on: https://localhost:XXXX`) lub z `src/TurniejePro.Api/Properties/launchSettings.json`.
+3. Otwórz w przeglądarce:
+
+| Co | Adres |
+|---|---|
+| Swagger UI (interaktywna dokumentacja) | `https://localhost:<port>/swagger` |
+| Specyfikacja OpenAPI (JSON) | `https://localhost:<port>/openapi/v1.json` |
+
+W Visual Studio przeglądarka powinna otworzyć Swagger UI automatycznie po F5.
+
+### Wypróbowanie endpointu
+
+W Swagger UI rozwiń endpoint, kliknij **Try it out**, uzupełnij parametry lub treść żądania i wybierz **Execute**. Odpowiedź, kod statusu i przykładowe dane pojawią się poniżej.
+
+### Pobranie specyfikacji
+
+Specyfikację możesz zapisać do pliku, np. do importu w Postmanie lub generowania klienta:
+
+```bash
+curl -k https://localhost:<port>/openapi/v1.json -o openapi.json
+```
+
+Opcja `-k` pomija weryfikację certyfikatu deweloperskiego. Plik możesz też zapisać z przeglądarki (Ctrl+S na stronie `/openapi/v1.json`).
 
 ## Licencja
 
