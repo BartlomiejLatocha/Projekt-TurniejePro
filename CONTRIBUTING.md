@@ -120,3 +120,10 @@ git merge main
 ```
 
 Rozwiąż konflikty lokalnie, uruchom build i testy, a następnie wypchnij gałąź.
+
+## Zmiany kontraktów API
+
+- Typy wymieniane między API a Blazorem znajdują się w `src/TurniejePro.Contracts`.
+- Zasady, konwencje i wzorzec DTO opisuje [docs/api-contracts.md](docs/api-contracts.md).
+- Zmiana w kontraktach wymaga zatwierdzenia przez osobę od backendu i od frontendu.
+- Zmiany łamiące (usunięcie lub zmiana pola, ścieżki, wartości enuma) ogłaszamy wcześniej w zespole.

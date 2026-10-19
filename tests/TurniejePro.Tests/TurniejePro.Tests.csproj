@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TurniejePro.API\TurniejePro.Api.csproj" />
+    <ProjectReference Include="..\..\src\TurniejePro.Contracts\TurniejePro.Contracts.csproj" />
     <ProjectReference Include="..\..\src\TurniejePro.Data\TurniejePro.Data.csproj" />
     <ProjectReference Include="..\..\src\TurniejePro.Domain\TurniejePro.Domain.csproj" />
   </ItemGroup>

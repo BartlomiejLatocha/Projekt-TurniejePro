@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\TurniejePro.Contracts\TurniejePro.Contracts.csproj" />
     <ProjectReference Include="..\TurniejePro.Data\TurniejePro.Data.csproj" />
     <ProjectReference Include="..\TurniejePro.Domain\TurniejePro.Domain.csproj" />
   </ItemGroup>
