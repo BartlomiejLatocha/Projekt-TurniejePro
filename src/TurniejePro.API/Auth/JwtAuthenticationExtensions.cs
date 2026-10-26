@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authorization;
 
 namespace TurniejePro.Api.Auth;
 
@@ -49,7 +50,14 @@ public static class JwtAuthenticationExtensions
                 };
             });
 
-        services.AddAuthorization();
+        services.AddAuthorizationBuilder()
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build())
+            .AddPolicy(Policies.ManageTournaments, p => p.RequireRole(Roles.Organizer))
+            .AddPolicy(Policies.AcceptApplications, p => p.RequireRole(Roles.Organizer))
+            .AddPolicy(Policies.RegisterTeam, p => p.RequireRole(Roles.Organizer, Roles.Captain))
+            .AddPolicy(Policies.EnterResults, p => p.RequireRole(Roles.Organizer, Roles.Captain));
 
         return services;
     }

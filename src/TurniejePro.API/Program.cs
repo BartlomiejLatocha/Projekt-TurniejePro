@@ -38,7 +38,7 @@ if (app.Environment.IsDevelopment())
         await RoleSeeder.SeedRolesAsync(roleManager);
     }
 
-    app.MapOpenApi();                                   // /openapi/v1.json
+    app.MapOpenApi().AllowAnonymous();                                  // /openapi/v1.json
     app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "TurniejePro API v1"));  // /swagger
 }
 

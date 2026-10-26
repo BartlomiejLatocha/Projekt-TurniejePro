@@ -1,10 +1,11 @@
-using System.Data.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Data.Common;
 using TurniejePro.Data;
+using TurniejePro.Tests.Controllers;
 
 namespace TurniejePro.Tests;
 
@@ -22,6 +23,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
+            services.AddControllers()
+                .AddApplicationPart(typeof(TestAuthorizationController).Assembly);
+
             // Usunięcie domyślnej rejestracji DbContext
             var dbContextDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<TurniejeProDbContext>));
