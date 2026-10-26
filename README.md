@@ -91,6 +91,14 @@ Sekretów (connection string, klucze) nie przechowujemy w repozytorium. Lokalnie
 dotnet user-secrets set "ConnectionStrings:Default" "<twój connection string>" --project src/TurniejePro.Api
 ```
 
+## Konfiguracja lokalna (User Secrets)
+Aplikacja do poprawnego działania uwierzytelniania JWT wymaga ustawienia tajnego klucza w User Secrets projektu API. 
+Przed pierwszym uruchomieniem wykonaj w terminalu:
+
+```bash
+dotnet user-secrets set "Jwt:Key" "<twój-losowy-klucz-min-32-znaki>" --project src/TurniejePro.Api
+```
+
 ## Zasady pracy zespołu
 
 - Gałąź `main` jest chroniona: zmiany wyłącznie przez Pull Request z min. 1 zatwierdzeniem (code review).
@@ -115,6 +123,7 @@ Szczegóły: [CONTRIBUTING.md](CONTRIBUTING.md).
 - Backlog i zadania: Jira (`TODO: link`)
 - API: [Swagger / OpenAPI](#dokumentacja-api-swagger--openapi) (po lokalnym uruchomieniu API)
 - Wdrożenie: instrukcja zostanie dodana w ramach zadania FE-10.2
+- Kontrakty API: [docs/api-contracts.md](docs/api-contracts.md).
 
 ## Dokumentacja API (Swagger / OpenAPI)
 
@@ -155,3 +164,4 @@ Opcja `-k` pomija weryfikację certyfikatu deweloperskiego. Plik możesz też za
 ## Licencja
 
 `TODO`
+

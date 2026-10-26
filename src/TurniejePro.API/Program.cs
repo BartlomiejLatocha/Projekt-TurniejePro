@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using TurniejePro.Api.Auth;
 using TurniejePro.Data;
 using TurniejePro.Data.Identity;
 
@@ -8,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddDataServices(builder.Configuration);
 builder.Services.AddControllers();
+
+builder.Services.AddJwtAuthentication(builder.Configuration);
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi(options =>
@@ -41,8 +44,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

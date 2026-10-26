@@ -1,6 +1,28 @@
-@TurniejePro.API_HostAddress = http://localhost:5262
+@TurniejePro.Api_HostAddress = https://localhost:7081
 
-GET {{TurniejePro.API_HostAddress}}/weatherforecast/
-Accept: application/json
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzhiMTUyYy1hZjUxLTQ2MWEtYmY2MS00OTU4MDQ3NjE2ZTkiLCJlbWFpbCI6InRlc3RAZ21haWwuY29tIiwibmFtZSI6InRlc3RAZ21haWwuY29tIiwianRpIjoiMGU3ZTJmNmQtODAxMi00ZDU0LWIzOTYtNDA4NDQ2ZDgzOTZkIiwibmJmIjoxNzkzMDM4ODYxLCJleHAiOjE3OTMwNDI0NjEsImlhdCI6MTc5MzAzODg2MSwiaXNzIjoiVHVybmllamVQcm8iLCJhdWQiOiJUdXJuaWVqZVBybyJ9.8OOxA7kkRXrOWRnNpaY6WFB23TEePRXWY9tOagr33cA
 
-###
+### 1. Rejestracja nowego użytkownika
+POST {{TurniejePro.Api_HostAddress}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "jan.kowalski@example.com",
+  "password": "Password123!"
+}
+
+### 2. Logowanie i pobranie tokena JWT
+POST {{TurniejePro.Api_HostAddress}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "jan.kowalski@example.com",
+  "password": "Password123!"
+}
+
+### 3. Test GET /me BEZ TOKENA (Oczekiwany status: 401 Unauthorized)
+GET {{TurniejePro.Api_HostAddress}}/api/v1/auth/me
+
+### 4. Test GET /me Z TOKENEM (Oczekiwany status: 200 OK)
+GET {{TurniejePro.Api_HostAddress}}/api/v1/auth/me
+Authorization: Bearer {{authToken}}
