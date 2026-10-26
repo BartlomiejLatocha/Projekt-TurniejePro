@@ -15,6 +15,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddDataServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
+
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? "Data Source=turniejepro.db";
 
@@ -31,7 +33,8 @@ public static class DependencyInjection
             options.User.RequireUniqueEmail = true;
         })
         .AddRoles<IdentityRole<Guid>>()
-        .AddEntityFrameworkStores<TurniejeProDbContext>();
+        .AddEntityFrameworkStores<TurniejeProDbContext>()
+        .AddSignInManager();
 
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<ITournamentRepository, TournamentRepository>();
