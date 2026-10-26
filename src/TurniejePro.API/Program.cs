@@ -1,8 +1,11 @@
+using TurniejePro.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
+builder.Services.AddDataServices(builder.Configuration);
 builder.Services.AddControllers();
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi(options =>
 {
@@ -14,7 +17,6 @@ builder.Services.AddOpenApi(options =>
         return Task.CompletedTask;
     });
 });
-
 
 var app = builder.Build();
 
