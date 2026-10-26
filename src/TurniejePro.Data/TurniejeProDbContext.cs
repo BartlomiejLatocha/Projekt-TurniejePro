@@ -1,12 +1,15 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using TurniejePro.Data.Identity;
 using TurniejePro.Domain;
 
 namespace TurniejePro.Data;
 
 /// <summary>
-/// Główny kontekst bazy danych aplikacji TurniejePro.
+/// Główny kontekst bazy danych aplikacji TurniejePro zintegrowany z ASP.NET Core Identity.
 /// </summary>
-public class TurniejeProDbContext : DbContext
+public class TurniejeProDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public TurniejeProDbContext(DbContextOptions<TurniejeProDbContext> options)
         : base(options)
@@ -19,9 +22,9 @@ public class TurniejeProDbContext : DbContext
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<CollectibleToken> CollectibleTokens => Set<CollectibleToken>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(TurniejeProDbContext).Assembly);
+        base.OnModelCreating(builder);
+        builder.ApplyConfigurationsFromAssembly(typeof(TurniejeProDbContext).Assembly);
     }
 }

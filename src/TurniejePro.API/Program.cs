@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using TurniejePro.Data;
+using TurniejePro.Data.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +26,15 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<TurniejeProDbContext>();
+        dbContext.Database.Migrate();
+
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        await RoleSeeder.SeedRolesAsync(roleManager);
+    }
+
     app.MapOpenApi();                                   // /openapi/v1.json
     app.UseSwaggerUI(o => o.SwaggerEndpoint("/openapi/v1.json", "TurniejePro API v1"));  // /swagger
 }
