@@ -1,7 +1,52 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@inject AuthSession Session
 
-<PageTitle>Home</PageTitle>
+<PageTitle>TurniejePro</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>TurniejePro</h1>
 
-Welcome to your new app.
+<p class="lead">
+    Organizuj amatorskie turnieje bez arkuszy i komunikatorów: zgłoszenia drużyn, terminarz,
+    wyniki i tabela w jednym miejscu.
+</p>
+
+@if (Session.Current is { } user)
+{
+    <div class="alert alert-success" role="status">Zalogowano jako <strong>@user.Email</strong>.</div>
+}
+else
+{
+    <div class="d-flex gap-2 mb-4">
+        <a class="btn btn-primary" href="login">Zaloguj się</a>
+        <a class="btn btn-outline-primary" href="register">Załóż konto</a>
+    </div>
+}
+
+<div class="row row-cols-1 row-cols-md-3 g-3">
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5 card-title">Kibic</h2>
+                <p class="card-text">Przeglądaj turnieje, terminarz, wyniki i tabele. Konto nie jest potrzebne do oglądania publicznych danych.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5 card-title">Kapitan</h2>
+                <p class="card-text">Zgłoś swoją drużynę i zawodników do otwartego turnieju.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5 card-title">Organizator</h2>
+                <p class="card-text">Załóż turniej, zaakceptuj zgłoszenia, wygeneruj terminarz i wpisuj wyniki meczów.</p>
+            </div>
+        </div>
+    </div>
+</div>

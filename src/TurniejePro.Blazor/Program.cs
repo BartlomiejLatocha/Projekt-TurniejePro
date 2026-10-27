@@ -1,10 +1,18 @@
 using TurniejePro.Blazor.Components;
+using TurniejePro.Blazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddHttpClient<AuthApiClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Api:BaseUrl"]
+        ?? throw new InvalidOperationException("Brak konfiguracji Api:BaseUrl."));
+});
+builder.Services.AddScoped<AuthSession>();
 
 var app = builder.Build();
 
