@@ -1,0 +1,52 @@
+@implements IDisposable
+@inject AuthSession Session
+
+@if (IsVisible())
+{
+    @ChildContent
+}
+
+@code {
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>
+    /// Role oddzielone przecinkami, z którymi element jest widoczny (wystarczy jedna).
+    /// Pusta wartość oznacza dowolną zalogowaną osobę.
+    /// </summary>
+    [Parameter]
+    public string? Roles { get; set; }
+
+    /// <summary>
+    /// Gdy ustawione, element jest widoczny tylko dla osób niezalogowanych.
+    /// </summary>
+    [Parameter]
+    public bool AnonymousOnly { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool IsVisible()
+    {
+        if (AnonymousOnly)
+        {
+            return !Session.IsLoggedIn;
+        }
+
+        if (!Session.IsLoggedIn)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Roles))
+        {
+            return true;
+        }
+
+        var requiredRoles = Roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return Session.IsInAnyRole(requiredRoles);
+    }
+}

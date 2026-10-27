@@ -1,4 +1,7 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@inject AuthSession Session
+@inject NavigationManager Navigation
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">TurniejePro</a>
     </div>
@@ -14,17 +17,35 @@
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="login">
-                Logowanie
-            </NavLink>
-        </div>
+        <RoleView AnonymousOnly="true">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    Logowanie
+                </NavLink>
+            </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="register">
-                Rejestracja
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="register">
+                    Rejestracja
+                </NavLink>
+            </div>
+        </RoleView>
+
+        <RoleView>
+            <div class="nav-item px-3">
+                <button class="nav-link btn btn-link p-0" @onclick="Logout">
+                    Wyloguj
+                </button>
+            </div>
+        </RoleView>
     </nav>
 </div>
 
+
+@code {
+    private void Logout()
+    {
+        Session.Clear();
+        Navigation.NavigateTo("/");
+    }
+}
