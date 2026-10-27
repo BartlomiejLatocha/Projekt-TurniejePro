@@ -1,0 +1,89 @@
+@page "/register"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Auth
+@inject AuthApiClient AuthApi
+@inject AuthSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>Rejestracja</PageTitle>
+
+<h1>Rejestracja</h1>
+
+<EditForm Model="model" OnValidSubmit="HandleValidSubmitAsync" class="col-md-6 col-lg-4">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" role="alert" />
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    <div class="mb-3">
+        <label class="form-label" for="register-email">E-mail</label>
+        <InputText id="register-email" class="form-control" @bind-Value="model.Email" autocomplete="username" />
+        <ValidationMessage For="() => model.Email" class="text-danger" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="register-password">Hasło</label>
+        <InputText id="register-password" type="password" class="form-control" @bind-Value="model.Password" autocomplete="new-password" />
+        <ValidationMessage For="() => model.Password" class="text-danger" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="register-confirm">Powtórz hasło</label>
+        <InputText id="register-confirm" type="password" class="form-control" @bind-Value="model.ConfirmPassword" autocomplete="new-password" />
+        <ValidationMessage For="() => model.ConfirmPassword" class="text-danger" />
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Zarejestruj się</button>
+</EditForm>
+
+@code {
+    private RegisterModel model = new();
+    private string? errorMessage;
+    private bool isSubmitting;
+
+    private async Task HandleValidSubmitAsync()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            var outcome = await AuthApi.RegisterAsync(new RegisterRequest(model.Email, model.Password));
+            if (outcome.Response is { } auth)
+            {
+                Session.Start(auth);
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                errorMessage = outcome.ErrorMessage;
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    // Walidacja po stronie przeglądarki powtarza reguły z TurniejePro.Contracts (RegisterRequest),
+    // żeby użytkownik dostał komunikat przed wysłaniem. Pełną kontrolę ma API.
+    private sealed class RegisterModel
+    {
+        [Required(ErrorMessage = "Podaj adres e-mail.")]
+        [EmailAddress(ErrorMessage = "Podaj poprawny adres e-mail.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Podaj hasło.")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "Hasło musi mieć od 8 do 100 znaków.")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Powtórz hasło.")]
+        [Compare(nameof(Password), ErrorMessage = "Hasła nie są takie same.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}
