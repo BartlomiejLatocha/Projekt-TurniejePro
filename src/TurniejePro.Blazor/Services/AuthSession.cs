@@ -12,7 +12,24 @@ public sealed class AuthSession
 
     public bool IsLoggedIn => Current is not null;
 
-    public void Start(AuthResponse response) => Current = response;
+    /// <summary>
+    /// Zgłaszane po zalogowaniu lub wylogowaniu, żeby komponenty mogły się odświeżyć.
+    /// </summary>
+    public event Action? Changed;
 
-    public void Clear() => Current = null;
+    public void Start(AuthResponse response)
+    {
+        Current = response;
+        Changed?.Invoke();
+    }
+
+    public void Clear()
+    {
+        Current = null;
+        Changed?.Invoke();
+    }
+
+    public bool IsInRole(string role) => Current?.Roles.Contains(role) ?? false;
+
+    public bool IsInAnyRole(IEnumerable<string> roles) => roles.Any(IsInRole);
 }

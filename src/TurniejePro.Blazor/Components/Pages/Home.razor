@@ -12,17 +12,19 @@
     wyniki i tabela w jednym miejscu.
 </p>
 
-@if (Session.Current is { } user)
-{
-    <div class="alert alert-success" role="status">Zalogowano jako <strong>@user.Email</strong>.</div>
-}
-else
-{
+<RoleView>
+    <div class="alert alert-success" role="status">
+        Zalogowano jako <strong>@Session.Current?.Email</strong>.
+        Role: @string.Join(", ", Session.Current?.Roles ?? [])
+    </div>
+</RoleView>
+
+<RoleView AnonymousOnly="true">
     <div class="d-flex gap-2 mb-4">
         <a class="btn btn-primary" href="login">Zaloguj się</a>
         <a class="btn btn-outline-primary" href="register">Załóż konto</a>
     </div>
-}
+</RoleView>
 
 <div class="row row-cols-1 row-cols-md-3 g-3">
     <div class="col">
