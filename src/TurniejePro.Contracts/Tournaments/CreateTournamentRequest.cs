@@ -11,8 +11,8 @@ namespace TurniejePro.Contracts.Tournaments;
 /// <param name="StartsAt">Termin rozpoczęcia (UTC).</param>
 /// <param name="MaxTeams">Limit drużyn (2-128).</param>
 public sealed record CreateTournamentRequest(
-    [property: Required, StringLength(100, MinimumLength = 3)] string Name,
-    [property: Required, StringLength(50)] string Discipline,
+    [Required, StringLength(100, MinimumLength = 3)] string Name,
+    [Required, StringLength(50)] string Discipline,
     TournamentFormat Format,
     DateTimeOffset StartsAt,
-    [property: Range(2, 128)] int MaxTeams);
+    [Range(2, 128)] int MaxTeams);
