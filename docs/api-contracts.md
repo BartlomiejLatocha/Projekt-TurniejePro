@@ -40,7 +40,7 @@ Przestrzeń nazw odpowiada folderowi: `TurniejePro.Contracts.<Zasób>`, np. `Tur
 | Daty i czas | `DateTimeOffset`, zawsze UTC, format ISO 8601 |
 | Enumy | serializowane jako tekst (`"League"`, nie `1`). Atrybut `[JsonConverter(typeof(JsonStringEnumConverter))]` na samym enumie. Wartości numerowane jawnie, od 1. |
 | Nullowalność | jawna: `string?` oznacza pole opcjonalne, pozostałe są wymagane |
-| Walidacja | atrybuty DataAnnotations na typach `*Request`, z prefiksem `[property: ...]` |
+| Walidacja | atrybuty DataAnnotations na parametrach rekordów `*Request`, **bez** prefiksu `property:` (MVC rzuca wyjątek dla rekordu z walidacją na właściwościach, a API kończy żądanie błędem 500) |
 | Listy | zawsze `PagedResponse<T>`, nigdy goła tablica |
 | Błędy | `ProblemDetails` (RFC 9457), bez stack trace'ów i danych wewnętrznych |
 | Ścieżki | `/api/v1/<zasób-w-liczbie-mnogiej>`, np. `/api/v1/tournaments` |
@@ -111,11 +111,11 @@ using System.ComponentModel.DataAnnotations;
 namespace TurniejePro.Contracts.Tournaments;
 
 public sealed record CreateTournamentRequest(
-    [property: Required, StringLength(100, MinimumLength = 3)] string Name,
-    [property: Required, StringLength(50)] string Discipline,
+    [Required, StringLength(100, MinimumLength = 3)] string Name,
+    [Required, StringLength(50)] string Discipline,
     TournamentFormat Format,
     DateTimeOffset StartsAt,
-    [property: Range(2, 128)] int MaxTeams);
+    [Range(2, 128)] int MaxTeams);
 ```
 
 **Enum:**
@@ -136,6 +136,8 @@ public enum TournamentFormat
 Zasady do zapamiętania:
 
 - DTO nie zawiera logiki, tylko dane i atrybuty walidacji.
+- Atrybuty walidacji stawiamy na parametrach rekordu (bez `property:`). Walidują je MVC i API, ale nie `<DataAnnotationsValidator />` z Blazora.
+- Formularze Blazora **nie wiążą się bezpośrednio z rekordami `*Request`**. Mają własny model formularza (klasa z właściwościami i atrybutami walidacji, np. `LoginModel` w `Login.razor`), a rekord z `Contracts` powstaje dopiero przy wysyłaniu do API. Reguły walidacji z kontraktu powtarzamy w modelu formularza, żeby użytkownik dostał komunikat przed wysłaniem.
 - Pole opcjonalne oznaczamy `?` (np. `string? Description`), a nie wartością domyślną.
 - Typy `Domain` i `Data` nie pojawiają się w kontraktach.
 - Enum w `Contracts` jest osobnym typem od enuma w `Domain`. Mapowanie między nimi leży w `Api/Mapping/`, a wartości trzymamy zgodne.
@@ -164,7 +166,7 @@ Zasady do zapamiętania:
 | Drużyny | `/api/v1/teams` | `CreateTeamRequest` | `TeamResponse` | `TODO` | do wykonania |
 | Mecze | `/api/v1/matches` | `UpdateMatchResultRequest` | `MatchResponse` | `TODO` | do wykonania |
 | Tabela | `/api/v1/tournaments/{id}/standings` | brak | `StandingsResponse` | `TODO` | do wykonania |
-| Konta | `/api/v1/auth` | `LoginRequest` | `AuthResponse` | `TODO` | do wykonania |
+| Konta | `/api/v1/auth` | `LoginRequest` | `AuthResponse` | Adam Bednarski | gotowe |
 
 Nazwy typów i ścieżki w wierszach „do wykonania" są propozycjami. Właściciel zasobu może je doprecyzować, trzymając się konwencji z tego dokumentu.
 
@@ -173,3 +175,4 @@ Nazwy typów i ścieżki w wierszach „do wykonania" są propozycjami. Właści
 | Data | Decyzja | Uczestnicy |
 |---|---|---|
 | `TODO` | Wspólne typy DTO w projekcie `TurniejePro.Contracts`; konwencje z tego dokumentu | `TODO` |
+| 2026-10-27 | Atrybuty walidacji na parametrach rekordów `*Request`, bez prefiksu `property:` (z prefiksem MVC kończy żądanie błędem 500). Formularze Blazora mają własne modele walidacji | `TODO` |

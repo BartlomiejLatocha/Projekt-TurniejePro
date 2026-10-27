@@ -122,6 +122,13 @@ Same role nie wystarczą dla reguł typu „kapitan edytuje wyłącznie swoją d
 - Pełna macierz „endpoint × rola × oczekiwany kod" (zadanie KAN-67) opiera się na tabeli w tym dokumencie. Zmiana macierzy oznacza zmianę testów.
 - Tokeny w testach generuje wspólny pomocnik z projektu `Tests` (bez logowania przez HTTP).
 
+### Macierz testów (KAN-67)
+
+- Testy: `tests/TurniejePro.Tests/AuthorizationMatrixTests.cs`. Wiersze macierzy (`Matrix`) to endpoint × brak tokenu / `Spectator` / `Captain` / `Organizer` → oczekiwany kod. Dodatkowo sprawdzamy `401` dla tokenu nieprawidłowego, wygasłego, podpisanego innym kluczem oraz ze złym `issuer` i `audience`.
+- Pomocnik tokenów: `tests/TurniejePro.Tests/TestTokens.cs`. Poprawne tokeny wystawia `ITokenService`, wadliwe składa ręcznie.
+- Endpointy, których jeszcze nie ma w API (zgłoszenia, wyniki), są reprezentowane przez `TestAuthorizationController` (po jednym endpointcie na politykę). Gdy powstanie prawdziwy endpoint, dopisz do macierzy nowy wiersz z jego ścieżką.
+- Nowy chroniony endpoint = nowy wiersz w `Matrix`, a zmiana uprawnień w tabeli powyżej = zmiana oczekiwanych kodów w odpowiednich wierszach.
+
 ## Historia decyzji
 
 | Data | Decyzja | Uczestnicy |
