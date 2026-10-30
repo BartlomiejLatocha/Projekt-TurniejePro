@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Data.Common;
+using Microsoft.Extensions.Hosting;
 using TurniejePro.Data;
 using TurniejePro.Tests.Controllers;
 
@@ -15,7 +15,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Ustawienie klucza JWT i opcji w konfiguracji testowej (dla środowisk CI bez User Secrets)
         builder.UseSetting("Jwt:Key", "TestSecretKey_MustBeAtLeast32CharactersLong_ForJwtValidation!");
         builder.UseSetting("Jwt:Issuer", "TurniejeProTest");
         builder.UseSetting("Jwt:Audience", "TurniejeProTest");
@@ -26,7 +25,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             services.AddControllers()
                 .AddApplicationPart(typeof(TestAuthorizationController).Assembly);
 
-            // Usunięcie domyślnej rejestracji DbContext
             var dbContextDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<TurniejeProDbContext>));
 
@@ -35,7 +33,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 services.Remove(dbContextDescriptor);
             }
 
-            // Utworzenie i otwarcie stałego połączenia do bazy w pamięci RAM
             _connection = new SqliteConnection("DataSource=:memory:");
             _connection.Open();
 
@@ -44,6 +41,29 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 options.UseSqlite(_connection);
             });
         });
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        var host = base.CreateHost(builder);
+
+        using (var scope = host.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<TurniejeProDbContext>();
+
+            db.Database.EnsureCreated();
+
+            if (!db.Tournaments.Any(t => t.Id == Guid.Empty))
+            {
+                // Bezpośrednie wstawienie SQL omija nadpisywanie Guid.Empty przez EF Core
+                db.Database.ExecuteSqlRaw(@"
+                    INSERT INTO Tournaments (Id, Name, Discipline, Format, StartsAt, MaxTeams, IsStarted)
+                    VALUES ('00000000-0000-0000-0000-000000000000', 'Turniej Testowy', 'E-Sport', 0, '2026-01-01 00:00:00', 16, 0);
+                ");
+            }
+        }
+
+        return host;
     }
 
     protected override void Dispose(bool disposing)
