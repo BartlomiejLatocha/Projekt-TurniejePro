@@ -1,8 +1,24 @@
 @TurniejePro.Api_HostAddress = https://localhost:7081
 
-@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzhiMTUyYy1hZjUxLTQ2MWEtYmY2MS00OTU4MDQ3NjE2ZTkiLCJlbWFpbCI6InRlc3RAZ21haWwuY29tIiwibmFtZSI6InRlc3RAZ21haWwuY29tIiwianRpIjoiMGU3ZTJmNmQtODAxMi00ZDU0LWIzOTYtNDA4NDQ2ZDgzOTZkIiwibmJmIjoxNzkzMDM4ODYxLCJleHAiOjE3OTMwNDI0NjEsImlhdCI6MTc5MzAzODg2MSwiaXNzIjoiVHVybmllamVQcm8iLCJhdWQiOiJUdXJuaWVqZVBybyJ9.8OOxA7kkRXrOWRnNpaY6WFB23TEePRXWY9tOagr33cA
+# Wklej tutaj wygenerowany token po wykonaniu żądania logowania
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5Y2QyNWFjMy05NzU4LTRjZTItYWU2ZS0zOTUxMmRkOTNhNzEiLCJlbWFpbCI6Im9yZ2FuaXplckBnbWFpbC5jb20iLCJuYW1lIjoib3JnYW5pemVyQGdtYWlsLmNvbSIsImp0aSI6ImQyNWYxODg3LTBmYmYtNDIwZi1iMmQwLTI0Mzk3NjA4OTA0NSIsInJvbGUiOiJPcmdhbml6ZXIiLCJuYmYiOjE3OTMzODU2MDksImV4cCI6MTc5MzM4OTIwOSwiaWF0IjoxNzkzMzg1NjA5LCJpc3MiOiJUdXJuaWVqZVBybyIsImF1ZCI6IlR1cm5pZWplUHJvIn0.cwZ9cItzqNW7rNw8df1-5Hv8X41yUqX4t-DyBsAOns4
 
-### 1. Rejestracja nowego użytkownika
+# Wklej tutaj GUID turnieju po jego utworzeniu (POST)
+@tournamentId = e540ef69-0449-49fa-9562-9b34d8c91130
+
+### ==========================================
+### 1. DIAGNOSTYKA I BEZPIECZEŃSTWO DOMYŚLNE
+### ==========================================
+
+### 1.1. Health Check (Publiczny - [AllowAnonymous])
+GET {{TurniejePro.Api_HostAddress}}/api/v1/health
+Accept: application/json
+
+### ==========================================
+### 2. AUTENTYKACJA (AUTH)
+### ==========================================
+
+### 2.1. Rejestracja nowego użytkownika
 POST {{TurniejePro.Api_HostAddress}}/api/v1/auth/register
 Content-Type: application/json
 
@@ -11,7 +27,7 @@ Content-Type: application/json
   "password": "Password123!"
 }
 
-### 2. Logowanie i pobranie tokena JWT
+### 2.2. Logowanie i pobranie tokena JWT
 POST {{TurniejePro.Api_HostAddress}}/api/v1/auth/login
 Content-Type: application/json
 
@@ -20,9 +36,51 @@ Content-Type: application/json
   "password": "Password123!"
 }
 
-### 3. Test GET /me BEZ TOKENA (Oczekiwany status: 401 Unauthorized)
+### 2.3. Test GET /me BEZ TOKENA (Oczekiwany status: 401 Unauthorized)
 GET {{TurniejePro.Api_HostAddress}}/api/v1/auth/me
 
-### 4. Test GET /me Z TOKENEM (Oczekiwany status: 200 OK)
+### 2.4. Test GET /me Z TOKENEM (Oczekiwany status: 200 OK)
 GET {{TurniejePro.Api_HostAddress}}/api/v1/auth/me
+Authorization: Bearer {{authToken}}
+
+### ==========================================
+### 3. TURNIEJE (CRUD)
+### ==========================================
+
+### 3.1. Pobieranie listy turniejów (Publiczne, Paged)
+GET {{TurniejePro.Api_HostAddress}}/api/v1/tournaments?page=1&pageSize=10
+Accept: application/json
+
+### 3.2. Tworzenie turnieju (Wymaga roli Organizatora)
+POST {{TurniejePro.Api_HostAddress}}/api/v1/tournaments
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "Mistrzostwa E-Sport 2026",
+  "discipline": "Counter-Strike 2",
+  "format": "Cup",
+  "startsAt": "2026-06-01T12:00:00Z",
+  "maxTeams": 16
+}
+
+### 3.3. Pobranie szczegółów turnieju (Publiczne)
+GET {{TurniejePro.Api_HostAddress}}/api/v1/tournaments/{{tournamentId}}
+Accept: application/json
+
+### 3.4. Edycja turnieju (Wymaga roli Organizatora)
+PUT {{TurniejePro.Api_HostAddress}}/api/v1/tournaments/{{tournamentId}}
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "Mistrzostwa E-Sport 2026 - Edycja Letnia",
+  "discipline": "Counter-Strike 2",
+  "format": "League",
+  "startsAt": "2026-06-15T12:00:00Z",
+  "maxTeams": 32
+}
+
+### 3.5. Usunięcie turnieju (Wymaga roli Organizatora)
+DELETE {{TurniejePro.Api_HostAddress}}/api/v1/tournaments/{{tournamentId}}
 Authorization: Bearer {{authToken}}
