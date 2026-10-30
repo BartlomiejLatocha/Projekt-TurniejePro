@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TurniejePro.Domain;
+using TurniejePro.Domain.Enums;
 
 namespace TurniejePro.Data.Configurations;
 
@@ -19,6 +20,11 @@ public class TeamConfiguration : IEntityTypeConfiguration<Team>
 
         builder.Property(t => t.IsAccepted)
             .IsRequired();
+
+        builder.Property(t => t.Status)
+            .IsRequired()
+            .HasDefaultValue(TeamRegistrationStatus.Pending)
+            .HasSentinel(0);
 
         builder.Property(t => t.RegisteredAt)
             .IsRequired();

@@ -340,6 +340,11 @@ namespace TurniejePro.Data.Migrations
                     b.Property<DateTimeOffset>("RegisteredAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
+
                     b.Property<Guid>("TournamentId")
                         .HasColumnType("TEXT");
 
