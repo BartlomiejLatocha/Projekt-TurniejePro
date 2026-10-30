@@ -1,10 +1,10 @@
 @TurniejePro.Api_HostAddress = https://localhost:7081
 
 # Wklej tutaj wygenerowany token po wykonaniu żądania logowania
-@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5Y2QyNWFjMy05NzU4LTRjZTItYWU2ZS0zOTUxMmRkOTNhNzEiLCJlbWFpbCI6Im9yZ2FuaXplckBnbWFpbC5jb20iLCJuYW1lIjoib3JnYW5pemVyQGdtYWlsLmNvbSIsImp0aSI6ImQyNWYxODg3LTBmYmYtNDIwZi1iMmQwLTI0Mzk3NjA4OTA0NSIsInJvbGUiOiJPcmdhbml6ZXIiLCJuYmYiOjE3OTMzODU2MDksImV4cCI6MTc5MzM4OTIwOSwiaWF0IjoxNzkzMzg1NjA5LCJpc3MiOiJUdXJuaWVqZVBybyIsImF1ZCI6IlR1cm5pZWplUHJvIn0.cwZ9cItzqNW7rNw8df1-5Hv8X41yUqX4t-DyBsAOns4
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTQ5NmQwNy0wZDAxLTQ3YTItOTBlMC04NzdkMzIyMDQ4YzYiLCJlbWFpbCI6Im9yZ2FuaXplckBleGFtcGxlLmNvbSIsIm5hbWUiOiJvcmdhbml6ZXJAZXhhbXBsZS5jb20iLCJqdGkiOiJmYzc5OGUxZS1iZDQ3LTQxOTgtYjVmNy00ZjhlYmIyYjg0YjciLCJyb2xlIjoiT3JnYW5pemVyIiwibmJmIjoxNzkzMzg3NjgxLCJleHAiOjE3OTMzOTEyODEsImlhdCI6MTc5MzM4NzY4MSwiaXNzIjoiVHVybmllamVQcm8iLCJhdWQiOiJUdXJuaWVqZVBybyJ9.4vU8gl-aGsLLgzgMrTmxaO4kP65DfFRDrAXMYpNG89A
 
 # Wklej tutaj GUID turnieju po jego utworzeniu (POST)
-@tournamentId = e540ef69-0449-49fa-9562-9b34d8c91130
+@tournamentId = 03d9681a-a8c5-4033-8bb2-875bfc8e0678
 
 ### ==========================================
 ### 1. DIAGNOSTYKA I BEZPIECZEŃSTWO DOMYŚLNE
@@ -84,3 +84,36 @@ Authorization: Bearer {{authToken}}
 ### 3.5. Usunięcie turnieju (Wymaga roli Organizatora)
 DELETE {{TurniejePro.Api_HostAddress}}/api/v1/tournaments/{{tournamentId}}
 Authorization: Bearer {{authToken}}
+
+### ==========================================
+### 4. DRUŻYNY (TEAMS)
+### ==========================================
+
+### 4.1. Zgłoszenie nowej drużyny do turnieju
+POST {{TurniejePro.Api_HostAddress}}/api/v1/teams
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "tournamentId": "{{tournamentId}}",
+  "name": "FC Gryfy",
+  "contactEmail": "kapitan@gryfy.pl",
+  "players": [
+    {
+      "fullName": "Jan Kowalski",
+      "jerseyNumber": 10
+    },
+    {
+      "fullName": "Adam Nowak",
+      "jerseyNumber": 7
+    }
+  ]
+}
+
+### 4.2. Pobranie szczegółów drużyny po ID
+GET {{TurniejePro.Api_HostAddress}}/api/v1/teams/4699b38c-2436-4a34-9878-7e5a8f8bda9b
+Accept: application/json
+
+### 4.3. Pobranie wszystkich drużyn z danego turnieju
+GET {{TurniejePro.Api_HostAddress}}/api/v1/teams/tournament/{{tournamentId}}
+Accept: application/json

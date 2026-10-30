@@ -49,6 +49,41 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// --- SEEDING KONTA TESTOWEGO ORGANIZATORA (DEV ONLY) ---
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(); // Dostosuj typ użytkownika jeśli inny
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+
+    const string organizerRole = Roles.Organizer;
+    const string organizerEmail = "organizer@example.com";
+    const string organizerPassword = "Password123!";
+
+    // 1. Upewnij się, że rola istnieje
+    if (!await roleManager.RoleExistsAsync(organizerRole))
+    {
+        await roleManager.CreateAsync(new IdentityRole<Guid>(organizerRole));
+    }
+
+    // 2. Utwórz użytkownika, jeśli nie istnieje
+    var user = await userManager.FindByEmailAsync(organizerEmail);
+    if (user is null)
+    {
+        user = new ApplicationUser
+        {
+            UserName = organizerEmail,
+            Email = organizerEmail,
+            EmailConfirmed = true
+        };
+
+        var result = await userManager.CreateAsync(user, organizerPassword);
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(user, organizerRole);
+        }
+    }
+}
+
 app.Run();
 
 public partial class Program { }
