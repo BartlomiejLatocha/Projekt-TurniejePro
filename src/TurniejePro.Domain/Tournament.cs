@@ -2,9 +2,6 @@ using TurniejePro.Domain.Enums;
 
 namespace TurniejePro.Domain;
 
-/// <summary>
-/// Encja reprezentująca turniej sportowy.
-/// </summary>
 public class Tournament
 {
     public Guid Id { get; set; }
@@ -20,16 +17,10 @@ public class Tournament
     public ICollection<Match> Matches { get; set; } = new List<Match>();
     public ICollection<CollectibleToken> Tokens { get; set; } = new List<CollectibleToken>();
 
-    /// <summary>
-    /// Konstruktor bezparametrowy dla Entity Framework Core.
-    /// </summary>
     protected Tournament()
     {
     }
 
-    /// <summary>
-    /// Uproszczony konstruktor pomocniczy.
-    /// </summary>
     public Tournament(string name)
     {
         Id = Guid.NewGuid();
@@ -41,9 +32,6 @@ public class Tournament
         IsStarted = false;
     }
 
-    /// <summary>
-    /// Pełny konstruktor domenowy turnieju.
-    /// </summary>
     public Tournament(
         string name,
         string discipline,
@@ -64,7 +52,7 @@ public class Tournament
 
         Id = Guid.NewGuid();
         Name = name;
-        Discipline = discipline;
+        Discipline = string.IsNullOrWhiteSpace(discipline) ? "Ogólna" : discipline;
         Format = format;
         StartsAt = startsAt;
         MaxTeams = maxTeams;
@@ -72,9 +60,6 @@ public class Tournament
         IsStarted = false;
     }
 
-    /// <summary>
-    /// Rozpoczyna turniej. Po rozpoczęciu rejestracja drużyn jest zablokowana.
-    /// </summary>
     public void Start()
     {
         if (IsStarted)
@@ -85,8 +70,44 @@ public class Tournament
         IsStarted = true;
     }
 
-    /// <summary>
-    /// Sprawdza, czy można jeszcze zarejestrować nową drużynę w turnieju.
-    /// </summary>
     public bool CanRegisterTeam() => !IsStarted && Teams.Count < MaxTeams;
+
+    public void UpdateDetails(
+        string name,
+        string discipline,
+        TournamentFormat format,
+        DateTimeOffset startsAt,
+        int maxTeams)
+    {
+        if (IsStarted)
+        {
+            throw new InvalidOperationException("Nie można modyfikować rozpoczętego turnieju.");
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Nazwa turnieju nie może być pusta.", nameof(name));
+        }
+
+        if (string.IsNullOrWhiteSpace(discipline))
+        {
+            throw new ArgumentException("Dyscyplina nie może być pusta.", nameof(discipline));
+        }
+
+        if (maxTeams < 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxTeams), "Turniej musi dopuszczać co najmniej 2 drużyny.");
+        }
+
+        if (maxTeams < Teams.Count)
+        {
+            throw new InvalidOperationException("Limit drużyn nie może być mniejszy niż liczba już zarejestrowanych drużyn.");
+        }
+
+        Name = name;
+        Discipline = discipline;
+        Format = format;
+        StartsAt = startsAt;
+        MaxTeams = maxTeams;
+    }
 }

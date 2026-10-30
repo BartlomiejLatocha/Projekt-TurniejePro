@@ -126,6 +126,63 @@ public class RepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task TournamentRepository_GetByOrganizerIdAsync_ShouldReturnTournamentsForOrganizer()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TournamentRepository(context);
+        var organizerId = Guid.NewGuid();
+
+        var t1 = new Tournament("T1", "Piłka", TournamentFormat.League, DateTimeOffset.UtcNow, 8, organizerId);
+        var t2 = new Tournament("T2", "Koszykówka", TournamentFormat.Cup, DateTimeOffset.UtcNow, 16, organizerId);
+        var other = new Tournament("Other", "Szachy", TournamentFormat.Cup, DateTimeOffset.UtcNow, 4, Guid.NewGuid());
+
+        context.Tournaments.AddRange(t1, t2, other);
+        await context.SaveChangesAsync();
+
+        var results = await repository.GetByOrganizerIdAsync(organizerId);
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, t => Assert.Equal(organizerId, t.OrganizerId));
+    }
+
+    [Fact]
+    public async Task TournamentRepository_GetPagedAsync_ShouldPaginateAndFilterBySearchTerm()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TournamentRepository(context);
+
+        for (int i = 1; i <= 5; i++)
+        {
+            context.Tournaments.Add(new Tournament($"Mistrzostwa {i}", "Esport", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddHours(i), 8));
+        }
+        context.Tournaments.Add(new Tournament("Turniej Szachowy", "Szachy", TournamentFormat.League, DateTimeOffset.UtcNow, 8));
+        await context.SaveChangesAsync();
+
+        var (items, totalCount) = await repository.GetPagedAsync(1, 3, "esport");
+
+        Assert.Equal(5, totalCount);
+        Assert.Equal(3, items.Count);
+        Assert.All(items, t => Assert.Equal("Esport", t.Discipline));
+    }
+
+    [Fact]
+    public async Task TournamentRepository_ExistsAsync_ShouldReturnCorrectStatus()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TournamentRepository(context);
+        var tournament = new Tournament("Istniejący");
+
+        context.Tournaments.Add(tournament);
+        await context.SaveChangesAsync();
+
+        var exists = await repository.ExistsAsync(tournament.Id);
+        var notExists = await repository.ExistsAsync(Guid.NewGuid());
+
+        Assert.True(exists);
+        Assert.False(notExists);
+    }
+
+    [Fact]
     public async Task TeamRepository_GetByTournamentIdAsync_ShouldReturnTeamsForSpecificTournament()
     {
         await using var context = new TurniejeProDbContext(_options);
