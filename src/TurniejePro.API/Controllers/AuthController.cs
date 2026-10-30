@@ -71,7 +71,7 @@ public class AuthController : ControllerBase
             await _roleManager.CreateAsync(new IdentityRole<Guid>(defaultRole));
         }
 
-        await _userManager.AddToRoleAsync(user, defaultRole);
+        await _userManager.AddToRoleAsync(user, Roles.Organizer);
 
         var roles = await _userManager.GetRolesAsync(user);
         var authResponse = _tokenService.CreateToken(user.Id, user.Email!, roles);
