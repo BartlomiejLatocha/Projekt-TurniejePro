@@ -117,3 +117,11 @@ Accept: application/json
 ### 4.3. Pobranie wszystkich drużyn z danego turnieju
 GET {{TurniejePro.Api_HostAddress}}/api/v1/teams/tournament/{{tournamentId}}
 Accept: application/json
+
+### 4.4. Akceptacja zgłoszenia drużyny (Wymaga roli Organizatora)
+PATCH {{TurniejePro.Api_HostAddress}}/api/v1/teams/{{teamId}}/accept
+Authorization: Bearer {{authToken}}
+
+### 4.5. Odrzucenie zgłoszenia drużyny (Wymaga roli Organizatora)
+PATCH {{TurniejePro.Api_HostAddress}}/api/v1/teams/{{teamId}}/reject
+Authorization: Bearer {{authToken}}
