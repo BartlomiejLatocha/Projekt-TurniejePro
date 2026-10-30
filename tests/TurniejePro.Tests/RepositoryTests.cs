@@ -207,6 +207,99 @@ public class RepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task TeamRepository_GetWithPlayersAsync_ShouldIncludePlayers()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TeamRepository(context);
+
+        var tournament = new Tournament("Turniej");
+        var team = new Team("Orły", tournament.Id);
+        team.AddPlayer("Kamil Stoch", 1);
+        team.AddPlayer("Piotr Żyła", 2);
+
+        context.Tournaments.Add(tournament);
+        context.Teams.Add(team);
+        await context.SaveChangesAsync();
+
+        var result = await repository.GetWithPlayersAsync(team.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal("Orły", result.Name);
+        Assert.Equal(2, result.Players.Count);
+    }
+
+    [Fact]
+    public async Task TeamRepository_GetByCaptainIdAsync_ShouldReturnTeamsForCaptain()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TeamRepository(context);
+        var captainId = Guid.NewGuid();
+
+        var tournament = new Tournament("Turniej");
+        var team1 = new Team("Team 1", tournament.Id, captainId);
+        var team2 = new Team("Team 2", tournament.Id, captainId);
+        var teamOther = new Team("Team Other", tournament.Id, Guid.NewGuid());
+
+        context.Tournaments.Add(tournament);
+        context.Teams.AddRange(team1, team2, teamOther);
+        await context.SaveChangesAsync();
+
+        var results = await repository.GetByCaptainIdAsync(captainId);
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, t => Assert.Equal(captainId, t.CaptainId));
+    }
+
+    [Fact]
+    public async Task TeamRepository_GetByStatusAsync_ShouldFilterByStatus()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TeamRepository(context);
+
+        var tournament = new Tournament("Turniej");
+        var teamAccepted = new Team("Accepted", tournament.Id);
+        teamAccepted.Accept();
+        var teamPending = new Team("Pending", tournament.Id);
+        var teamRejected = new Team("Rejected", tournament.Id);
+        teamRejected.Reject();
+
+        context.Tournaments.Add(tournament);
+        context.Teams.AddRange(teamAccepted, teamPending, teamRejected);
+        await context.SaveChangesAsync();
+
+        var accepted = await repository.GetByStatusAsync(tournament.Id, TeamRegistrationStatus.Accepted);
+        var pending = await repository.GetByStatusAsync(tournament.Id, TeamRegistrationStatus.Pending);
+        var rejected = await repository.GetByStatusAsync(tournament.Id, TeamRegistrationStatus.Rejected);
+
+        Assert.Single(accepted);
+        Assert.Equal("Accepted", accepted[0].Name);
+        Assert.Single(pending);
+        Assert.Equal("Pending", pending[0].Name);
+        Assert.Single(rejected);
+        Assert.Equal("Rejected", rejected[0].Name);
+    }
+
+    [Fact]
+    public async Task TeamRepository_ExistsByNameInTournamentAsync_ShouldReturnCorrectStatus()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TeamRepository(context);
+
+        var tournament = new Tournament("Turniej");
+        var team = new Team("Unikalna", tournament.Id);
+
+        context.Tournaments.Add(tournament);
+        context.Teams.Add(team);
+        await context.SaveChangesAsync();
+
+        var exists = await repository.ExistsByNameInTournamentAsync(tournament.Id, "Unikalna");
+        var notExists = await repository.ExistsByNameInTournamentAsync(tournament.Id, "Inna");
+
+        Assert.True(exists);
+        Assert.False(notExists);
+    }
+
+    [Fact]
     public async Task UnitOfWork_ShouldPerformTransactionalOperationsAcrossRepositories()
     {
         await using var context = new TurniejeProDbContext(_options);
