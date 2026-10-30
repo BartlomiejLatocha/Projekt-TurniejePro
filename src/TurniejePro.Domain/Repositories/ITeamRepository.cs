@@ -1,12 +1,13 @@
+using TurniejePro.Domain;
+using TurniejePro.Domain.Enums;
+
 namespace TurniejePro.Domain.Repositories;
 
-/// <summary>
-/// Interfejs repozytorium dedykowany dla operacji na drużynach.
-/// </summary>
 public interface ITeamRepository : IRepository<Team>
 {
-    /// <summary>
-    /// Pobiera listę drużyn zarejestrowanych w danym turnieju wraz ze składami.
-    /// </summary>
     Task<IReadOnlyList<Team>> GetByTournamentIdAsync(Guid tournamentId, CancellationToken cancellationToken = default);
+    Task<Team?> GetWithPlayersAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Team>> GetByCaptainIdAsync(Guid captainId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Team>> GetByStatusAsync(Guid tournamentId, TeamRegistrationStatus status, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByNameInTournamentAsync(Guid tournamentId, string name, CancellationToken cancellationToken = default);
 }
