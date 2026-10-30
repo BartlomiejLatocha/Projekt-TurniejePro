@@ -21,7 +21,7 @@ public class TeamsController : ControllerBase
     }
 
     /// <summary>
-    /// Zgłasza nową drużynę do turnieju (Wymaga zalogowania / polityki RegisterTeam).
+    /// Zgłasza nową drużynę do turnieju (Wymaga polityki RegisterTeam).
     /// </summary>
     [HttpPost]
     [Authorize(Policy = Policies.RegisterTeam)]
@@ -31,7 +31,6 @@ public class TeamsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Register([FromBody] CreateTeamRequest request, CancellationToken cancellationToken)
     {
-        // 1. Weryfikacja istnienia turnieju
         var tournament = await _unitOfWork.Tournaments.GetWithDetailsAsync(request.TournamentId, cancellationToken);
         if (tournament is null)
         {
@@ -43,7 +42,6 @@ public class TeamsController : ControllerBase
             });
         }
 
-        // 2. Walidacja biznesowa możliwości zapisów do turnieju
         if (!tournament.CanRegisterTeam())
         {
             return BadRequest(new ProblemDetails
@@ -54,7 +52,6 @@ public class TeamsController : ControllerBase
             });
         }
 
-        // 3. Sprawdzenie unikalności nazwy drużyny w ramach danego turnieju
         var nameExists = await _unitOfWork.Teams.ExistsByNameInTournamentAsync(request.TournamentId, request.Name, cancellationToken);
         if (nameExists)
         {
@@ -66,7 +63,6 @@ public class TeamsController : ControllerBase
             });
         }
 
-        // 4. Pobranie ID zalogowanego użytkownika (Kapitana)
         Guid? captainId = null;
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         if (Guid.TryParse(userIdClaim, out var parsedGuid))
@@ -76,7 +72,6 @@ public class TeamsController : ControllerBase
 
         try
         {
-            // 5. Utworzenie encji drużyny oraz dodanie zawodników
             var team = new Team(request.Name, request.TournamentId, captainId, request.ContactEmail);
 
             if (request.Players is not null)
@@ -104,7 +99,113 @@ public class TeamsController : ControllerBase
     }
 
     /// <summary>
-    /// Pobiera szczegółowe informacje o zgłoszonej drużynie.
+    /// Akceptuje zgłoszenie drużyny (Wymaga polityki AcceptApplications).
+    /// </summary>
+    [HttpPatch("{id:guid}/accept")]
+    [Authorize(Policy = Policies.AcceptApplications)]
+    [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> AcceptTeam(Guid id, CancellationToken cancellationToken)
+    {
+        var team = await _unitOfWork.Teams.GetWithPlayersAsync(id, cancellationToken);
+        if (team is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono drużyny",
+                Detail = $"Drużyna o identyfikatorze '{id}' nie istnieje."
+            });
+        }
+
+        var tournament = await _unitOfWork.Tournaments.GetWithDetailsAsync(team.TournamentId, cancellationToken);
+        if (tournament is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono turnieju",
+                Detail = "Turniej powiązany z tą drużyną nie istnieje."
+            });
+        }
+
+        if (tournament.IsStarted)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Turniej rozpoczęty",
+                Detail = "Nie można akceptować zgłoszeń w turnieju, który został już rozpoczęty."
+            });
+        }
+
+        // Sprawdzanie limitu MaxTeams dla drużyn zaakceptowanych
+        var acceptedTeams = await _unitOfWork.Teams.GetByStatusAsync(
+            team.TournamentId,
+            Domain.Enums.TeamRegistrationStatus.Accepted,
+            cancellationToken);
+
+        if (team.Status != Domain.Enums.TeamRegistrationStatus.Accepted && acceptedTeams.Count >= tournament.MaxTeams)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Osiągnięto limit drużyn",
+                Detail = $"Maksymalna liczba zaakceptowanych drużyn ({tournament.MaxTeams}) została już osiągnięta."
+            });
+        }
+
+        team.Accept();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Ok(team.ToResponse());
+    }
+
+    /// <summary>
+    /// Odrzuca zgłoszenie drużyny (Wymaga polityki AcceptApplications).
+    /// </summary>
+    [HttpPatch("{id:guid}/reject")]
+    [Authorize(Policy = Policies.AcceptApplications)]
+    [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> RejectTeam(Guid id, CancellationToken cancellationToken)
+    {
+        var team = await _unitOfWork.Teams.GetWithPlayersAsync(id, cancellationToken);
+        if (team is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono drużyny",
+                Detail = $"Drużyna o identyfikatorze '{id}' nie istnieje."
+            });
+        }
+
+        var tournament = await _unitOfWork.Tournaments.GetWithDetailsAsync(team.TournamentId, cancellationToken);
+        if (tournament is null || tournament.IsStarted)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Operacja niedozwolona",
+                Detail = "Nie można odrzucić zgłoszenia w rozpoczętym lub nieistniejącym turnieju."
+            });
+        }
+
+        team.Reject();
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Ok(team.ToResponse());
+    }
+
+    /// <summary>
+    /// Pobiera szczegóły drużyny po ID.
     /// </summary>
     [HttpGet("{id:guid}")]
     [AllowAnonymous]
@@ -113,7 +214,6 @@ public class TeamsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var team = await _unitOfWork.Teams.GetWithPlayersAsync(id, cancellationToken);
-
         if (team is null)
         {
             return NotFound(new ProblemDetails
@@ -128,7 +228,7 @@ public class TeamsController : ControllerBase
     }
 
     /// <summary>
-    /// Pobiera listę wszystkich drużyn zarejestrowanych w danym turnieju.
+    /// Pobiera drużyny z danego turnieju.
     /// </summary>
     [HttpGet("tournament/{tournamentId:guid}")]
     [AllowAnonymous]
@@ -136,8 +236,6 @@ public class TeamsController : ControllerBase
     public async Task<IActionResult> GetByTournamentId(Guid tournamentId, CancellationToken cancellationToken)
     {
         var teams = await _unitOfWork.Teams.GetByTournamentIdAsync(tournamentId, cancellationToken);
-        var response = teams.Select(t => t.ToResponse()).ToList();
-
-        return Ok(response);
+        return Ok(teams.Select(t => t.ToResponse()).ToList());
     }
 }
