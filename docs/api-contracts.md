@@ -162,7 +162,7 @@ Zasady do zapamiętania:
 
 | Zasób | Endpoint | Request | Response | Właściciel | Status |
 |---|---|---|---|---|---|
-| Turnieje | `/api/v1/tournaments` | `CreateTournamentRequest` | `TournamentResponse` | `TODO` | wzorzec w repo |
+| Turnieje | `/api/v1/tournaments` | `CreateTournamentRequest`, `UpdateTournamentRequest` | `TournamentResponse`, `TournamentDetailsResponse` | Adam Bednarski | gotowe |
 | Drużyny | `/api/v1/teams` | `CreateTeamRequest` | `TeamResponse` | `TODO` | do wykonania |
 | Mecze | `/api/v1/matches` | `UpdateMatchResultRequest` | `MatchResponse` | `TODO` | do wykonania |
 | Tabela | `/api/v1/tournaments/{id}/standings` | brak | `StandingsResponse` | `TODO` | do wykonania |

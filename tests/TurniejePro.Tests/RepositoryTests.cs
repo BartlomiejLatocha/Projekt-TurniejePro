@@ -35,18 +35,15 @@ public class RepositoryTests : IDisposable
     [Fact]
     public async Task GenericRepository_AddAndGetById_ShouldPersistEntity()
     {
-        // Arrange
         await using var context = new TurniejeProDbContext(_options);
         var repository = new Repository<Tournament>(context);
         var tournament = new Tournament("Turniej Testowy");
 
-        // Act
         await repository.AddAsync(tournament);
         await context.SaveChangesAsync();
 
         var retrieved = await repository.GetByIdAsync(tournament.Id);
 
-        // Assert
         Assert.NotNull(retrieved);
         Assert.Equal("Turniej Testowy", retrieved.Name);
     }
@@ -54,38 +51,32 @@ public class RepositoryTests : IDisposable
     [Fact]
     public async Task GenericRepository_GetAll_ShouldReturnAllEntities()
     {
-        // Arrange
         await using var context = new TurniejeProDbContext(_options);
         var repository = new Repository<Tournament>(context);
         await repository.AddAsync(new Tournament("T1"));
         await repository.AddAsync(new Tournament("T2"));
         await context.SaveChangesAsync();
 
-        // Act
         var all = await repository.GetAllAsync();
 
-        // Assert
         Assert.Equal(2, all.Count);
     }
 
     [Fact]
     public async Task GenericRepository_Update_ShouldModifyEntity()
     {
-        // Arrange
         await using var context = new TurniejeProDbContext(_options);
         var repository = new Repository<Tournament>(context);
         var tournament = new Tournament("Przed Zmianą");
         await repository.AddAsync(tournament);
         await context.SaveChangesAsync();
 
-        // Act
         tournament.Name = "Po Zmianie";
         repository.Update(tournament);
         await context.SaveChangesAsync();
 
         var updated = await repository.GetByIdAsync(tournament.Id);
 
-        // Assert
         Assert.NotNull(updated);
         Assert.Equal("Po Zmianie", updated.Name);
     }
@@ -93,27 +84,23 @@ public class RepositoryTests : IDisposable
     [Fact]
     public async Task GenericRepository_Delete_ShouldRemoveEntity()
     {
-        // Arrange
         await using var context = new TurniejeProDbContext(_options);
         var repository = new Repository<Tournament>(context);
         var tournament = new Tournament("Do Usunięcia");
         await repository.AddAsync(tournament);
         await context.SaveChangesAsync();
 
-        // Act
         repository.Delete(tournament);
         await context.SaveChangesAsync();
 
         var deleted = await repository.GetByIdAsync(tournament.Id);
 
-        // Assert
         Assert.Null(deleted);
     }
 
     [Fact]
     public async Task TournamentRepository_GetWithDetailsAsync_ShouldIncludeRelatedData()
     {
-        // Arrange
         await using var context = new TurniejeProDbContext(_options);
         var repository = new TournamentRepository(context);
 
@@ -129,10 +116,8 @@ public class RepositoryTests : IDisposable
         context.CollectibleTokens.Add(token);
         await context.SaveChangesAsync();
 
-        // Act
         var result = await repository.GetWithDetailsAsync(tournament.Id);
 
-        // Assert
         Assert.NotNull(result);
         Assert.Single(result.Teams);
         Assert.Single(result.Teams.First().Players);
@@ -141,9 +126,65 @@ public class RepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task TournamentRepository_GetByOrganizerIdAsync_ShouldReturnTournamentsForOrganizer()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TournamentRepository(context);
+        var organizerId = Guid.NewGuid();
+
+        var t1 = new Tournament("T1", "Piłka", TournamentFormat.League, DateTimeOffset.UtcNow, 8, organizerId);
+        var t2 = new Tournament("T2", "Koszykówka", TournamentFormat.Cup, DateTimeOffset.UtcNow, 16, organizerId);
+        var other = new Tournament("Other", "Szachy", TournamentFormat.Cup, DateTimeOffset.UtcNow, 4, Guid.NewGuid());
+
+        context.Tournaments.AddRange(t1, t2, other);
+        await context.SaveChangesAsync();
+
+        var results = await repository.GetByOrganizerIdAsync(organizerId);
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, t => Assert.Equal(organizerId, t.OrganizerId));
+    }
+
+    [Fact]
+    public async Task TournamentRepository_GetPagedAsync_ShouldPaginateAndFilterBySearchTerm()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TournamentRepository(context);
+
+        for (int i = 1; i <= 5; i++)
+        {
+            context.Tournaments.Add(new Tournament($"Mistrzostwa {i}", "Esport", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddHours(i), 8));
+        }
+        context.Tournaments.Add(new Tournament("Turniej Szachowy", "Szachy", TournamentFormat.League, DateTimeOffset.UtcNow, 8));
+        await context.SaveChangesAsync();
+
+        var (items, totalCount) = await repository.GetPagedAsync(1, 3, "esport");
+
+        Assert.Equal(5, totalCount);
+        Assert.Equal(3, items.Count);
+        Assert.All(items, t => Assert.Equal("Esport", t.Discipline));
+    }
+
+    [Fact]
+    public async Task TournamentRepository_ExistsAsync_ShouldReturnCorrectStatus()
+    {
+        await using var context = new TurniejeProDbContext(_options);
+        var repository = new TournamentRepository(context);
+        var tournament = new Tournament("Istniejący");
+
+        context.Tournaments.Add(tournament);
+        await context.SaveChangesAsync();
+
+        var exists = await repository.ExistsAsync(tournament.Id);
+        var notExists = await repository.ExistsAsync(Guid.NewGuid());
+
+        Assert.True(exists);
+        Assert.False(notExists);
+    }
+
+    [Fact]
     public async Task TeamRepository_GetByTournamentIdAsync_ShouldReturnTeamsForSpecificTournament()
     {
-        // Arrange
         await using var context = new TurniejeProDbContext(_options);
         var repository = new TeamRepository(context);
 
@@ -158,10 +199,8 @@ public class RepositoryTests : IDisposable
         context.Teams.AddRange(team1, team2);
         await context.SaveChangesAsync();
 
-        // Act
         var teamsForT1 = await repository.GetByTournamentIdAsync(tournament1.Id);
 
-        // Assert
         Assert.Single(teamsForT1);
         Assert.Equal("Team T1", teamsForT1[0].Name);
         Assert.Single(teamsForT1[0].Players);
@@ -170,7 +209,6 @@ public class RepositoryTests : IDisposable
     [Fact]
     public async Task UnitOfWork_ShouldPerformTransactionalOperationsAcrossRepositories()
     {
-        // Arrange
         await using var context = new TurniejeProDbContext(_options);
         var uow = new UnitOfWork(context);
 
@@ -179,14 +217,12 @@ public class RepositoryTests : IDisposable
         var match = new Match(tournament.Id, 1);
         var token = new CollectibleToken("UOW1", "Token UoW", tournament.Id);
 
-        // Act
         await uow.Tournaments.AddAsync(tournament);
         await uow.Teams.AddAsync(team);
         await uow.Matches.AddAsync(match);
         await uow.Tokens.AddAsync(token);
         var affectedRows = await uow.SaveChangesAsync();
 
-        // Assert
         Assert.True(affectedRows > 0);
 
         var savedTournament = await uow.Tournaments.GetByIdAsync(tournament.Id);
