@@ -7,11 +7,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddHttpClient<AuthApiClient>(client =>
+void ConfigureApiBaseAddress(HttpClient client)
 {
     client.BaseAddress = new Uri(builder.Configuration["Api:BaseUrl"]
         ?? throw new InvalidOperationException("Brak konfiguracji Api:BaseUrl."));
-});
+}
+
+builder.Services.AddHttpClient<AuthApiClient>(ConfigureApiBaseAddress);
+builder.Services.AddHttpClient<TeamApiClient>(ConfigureApiBaseAddress);
+builder.Services.AddHttpClient<TournamentApiClient>(ConfigureApiBaseAddress);
 builder.Services.AddScoped<AuthSession>();
 
 var app = builder.Build();
