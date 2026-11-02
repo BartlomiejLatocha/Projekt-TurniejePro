@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using TurniejePro.Contracts.Common;
 using TurniejePro.Contracts.Tournaments;
@@ -5,11 +6,44 @@ using TurniejePro.Contracts.Tournaments;
 namespace TurniejePro.Blazor.Services;
 
 /// <summary>
-/// Klient HTTP do pobierania publicznej listy turniejów z TurniejePro.Api.
+/// Klient HTTP do turniejów w TurniejePro.Api (lista publiczna i tworzenie przez organizatora).
 /// </summary>
 public sealed class TournamentApiClient(HttpClient http)
 {
     private const int PageSize = 100;
+
+    /// <summary>
+    /// Tworzy turniej. Wymaga tokenu organizatora.
+    /// </summary>
+    public async Task<TournamentCreationResult> CreateTournamentAsync(
+        CreateTournamentRequest request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Post, "api/v1/tournaments")
+        {
+            Content = JsonContent.Create(request)
+        };
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await http.SendAsync(message, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return TournamentCreationResult.Failure(await ApiError.ReadMessageAsync(response, cancellationToken));
+            }
+
+            var tournament = await response.Content.ReadFromJsonAsync<TournamentDetailsResponse>(cancellationToken);
+            return tournament is null
+                ? TournamentCreationResult.Failure("Serwer zwrócił pustą odpowiedź.")
+                : TournamentCreationResult.Success(tournament);
+        }
+        catch (HttpRequestException)
+        {
+            return TournamentCreationResult.Failure("Nie udało się połączyć z serwerem API.");
+        }
+    }
 
     /// <summary>
     /// Zwraca pierwszą stronę turniejów. Przy błędzie połączenia zwraca pustą listę.
@@ -29,4 +63,14 @@ public sealed class TournamentApiClient(HttpClient http)
             return [];
         }
     }
+}
+
+/// <summary>
+/// Wynik tworzenia turnieju: utworzony turniej albo komunikat o błędzie.
+/// </summary>
+public sealed record TournamentCreationResult(TournamentDetailsResponse? Tournament, string? ErrorMessage)
+{
+    public static TournamentCreationResult Success(TournamentDetailsResponse tournament) => new(tournament, null);
+
+    public static TournamentCreationResult Failure(string message) => new(null, message);
 }

@@ -1,0 +1,161 @@
+@page "/tournaments/new"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Auth
+@using TurniejePro.Contracts.Tournaments
+@implements IDisposable
+@inject AuthSession Session
+@inject TournamentApiClient TournamentApi
+
+<PageTitle>Nowy turniej</PageTitle>
+
+<h1>Nowy turniej</h1>
+
+@if (!canCreate)
+{
+    <div class="alert alert-warning" role="alert">
+        Tworzenie turniejów jest dostępne tylko dla organizatorów. Zaloguj się na konto z odpowiednią rolą.
+    </div>
+}
+else
+{
+    @if (successTournament is { } created)
+    {
+        <div class="alert alert-success" role="status">
+            Turniej „@created.Name” został utworzony.
+            <a href="teams/register?tournamentId=@created.Id">Zgłoś drużynę do tego turnieju</a>
+        </div>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="HandleValidSubmitAsync" class="col-lg-8">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" role="alert" />
+
+        <div class="mb-3">
+            <label class="form-label" for="tournament-name">Nazwa turnieju</label>
+            <InputText id="tournament-name" class="form-control" @bind-Value="model.Name" />
+            <ValidationMessage For="() => model.Name" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="tournament-discipline">Dyscyplina</label>
+            <InputText id="tournament-discipline" class="form-control" placeholder="np. piłka nożna, siatkówka, e-sport" @bind-Value="model.Discipline" />
+            <ValidationMessage For="() => model.Discipline" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="tournament-format">System rozgrywek</label>
+            <InputSelect id="tournament-format" class="form-select" @bind-Value="model.Format">
+                <option value="@TournamentFormat.League">Liga (każdy z każdym)</option>
+                <option value="@TournamentFormat.Cup">Puchar (drabinka)</option>
+            </InputSelect>
+            <ValidationMessage For="() => model.Format" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="tournament-starts">Termin rozpoczęcia</label>
+            <InputDate id="tournament-starts" Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="model.StartsAt" />
+            <ValidationMessage For="() => model.StartsAt" class="text-danger" />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label" for="tournament-max">Limit drużyn</label>
+            <InputNumber id="tournament-max" class="form-control" @bind-Value="model.MaxTeams" />
+            <ValidationMessage For="() => model.MaxTeams" class="text-danger" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Utwórz turniej</button>
+    </EditForm>
+}
+
+@code {
+    private TournamentForm model = CreateDefaultForm();
+    private TournamentDetailsResponse? successTournament;
+    private string? errorMessage;
+    private bool isSubmitting;
+    private bool canCreate;
+
+    protected override void OnInitialized()
+    {
+        Session.Changed += OnSessionChanged;
+        UpdateAccess();
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged()
+    {
+        UpdateAccess();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateAccess() => canCreate = Session.IsInRole(RoleNames.Organizer);
+
+    private async Task HandleValidSubmitAsync()
+    {
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            errorMessage = "Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie.";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = null;
+        successTournament = null;
+
+        try
+        {
+            // Termin z formularza traktujemy jako czas lokalny i wysyłamy w UTC, zgodnie z kontraktem API.
+            var startsAt = new DateTimeOffset(DateTime.SpecifyKind(model.StartsAt, DateTimeKind.Local)).ToUniversalTime();
+            var request = new CreateTournamentRequest(model.Name, model.Discipline, model.Format, startsAt, model.MaxTeams);
+
+            var result = await TournamentApi.CreateTournamentAsync(request, accessToken);
+            if (result.Tournament is { } tournament)
+            {
+                successTournament = tournament;
+                model = CreateDefaultForm();
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private static TournamentForm CreateDefaultForm() => new()
+    {
+        Format = TournamentFormat.League,
+        StartsAt = DateTime.Now.AddDays(14).Date.AddHours(18),
+        MaxTeams = 8
+    };
+
+    private sealed class TournamentForm
+    {
+        [Required(ErrorMessage = "Podaj nazwę turnieju.")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "Nazwa turnieju musi mieć od 3 do 100 znaków.")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Podaj dyscyplinę.")]
+        [StringLength(50, ErrorMessage = "Dyscyplina może mieć najwyżej 50 znaków.")]
+        public string Discipline { get; set; } = string.Empty;
+
+        public TournamentFormat Format { get; set; }
+
+        [Required(ErrorMessage = "Podaj termin rozpoczęcia.")]
+        public DateTime StartsAt { get; set; }
+
+        [Range(2, 128, ErrorMessage = "Limit drużyn musi być z zakresu 2–128.")]
+        public int MaxTeams { get; set; }
+    }
+}
