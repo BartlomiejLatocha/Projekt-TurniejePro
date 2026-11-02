@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using TurniejePro.Api.Auth;
 using TurniejePro.Contracts.Auth;
 using Xunit;
 
@@ -28,6 +29,21 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
         Assert.NotNull(authResponse);
         Assert.NotEmpty(authResponse.AccessToken);
+    }
+
+    [Fact]
+    public async Task Register_AssignsDefaultSpectatorRoleOnly()
+    {
+        // Arrange
+        var request = new RegisterRequest($"role_{Guid.NewGuid()}@test.com", "StrongPassword123!");
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/register", request);
+
+        // Assert
+        var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
+        Assert.NotNull(authResponse);
+        Assert.Equal(new[] { Roles.Fan }, authResponse.Roles);
     }
 
     [Fact]

@@ -1,0 +1,234 @@
+@page "/teams/register"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Auth
+@using TurniejePro.Contracts.Teams
+@using TurniejePro.Contracts.Tournaments
+@implements IDisposable
+@inject AuthSession Session
+@inject TournamentApiClient TournamentApi
+@inject TeamApiClient TeamApi
+
+<PageTitle>Zgłoszenie drużyny</PageTitle>
+
+<h1>Zgłoszenie drużyny</h1>
+
+@if (!canRegister)
+{
+    <div class="alert alert-warning" role="alert">
+        Zgłaszanie drużyn jest dostępne dla kapitanów i organizatorów. Zaloguj się na konto z odpowiednią rolą.
+    </div>
+}
+else
+{
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    @if (tournaments.Count == 0)
+    {
+        <p class="text-muted">Brak turniejów do wyboru. Spróbuj ponownie później.</p>
+    }
+
+    <EditForm Model="model" OnValidSubmit="HandleValidSubmitAsync" class="col-lg-8">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" role="alert" />
+
+        <div class="mb-3">
+            <label class="form-label" for="team-tournament">Turniej</label>
+            <InputSelect id="team-tournament" class="form-select" @bind-Value="model.TournamentId">
+                <option value="">-- wybierz turniej --</option>
+                @foreach (var tournament in tournaments)
+                {
+                    <option value="@tournament.Id">@tournament.Name (@tournament.Discipline)</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="() => model.TournamentId" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="team-name">Nazwa drużyny</label>
+            <InputText id="team-name" class="form-control" @bind-Value="model.Name" />
+            <ValidationMessage For="() => model.Name" class="text-danger" />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label" for="team-email">Kontaktowy e-mail (opcjonalnie)</label>
+            <InputText id="team-email" class="form-control" @bind-Value="model.ContactEmail" />
+            <ValidationMessage For="() => model.ContactEmail" class="text-danger" />
+        </div>
+
+        <h2 class="h5">Zawodnicy</h2>
+
+        @for (var i = 0; i < model.Players.Count; i++)
+        {
+            var index = i;
+            <div class="row g-2 align-items-start mb-2">
+                <div class="col-md-6">
+                    <InputText class="form-control" placeholder="Imię i nazwisko" aria-label="@($"Imię i nazwisko zawodnika {index + 1}")"
+                               @bind-Value="model.Players[index].FullName" />
+                    <ValidationMessage For="() => model.Players[index].FullName" class="text-danger" />
+                </div>
+                <div class="col-md-3">
+                    <InputNumber class="form-control" placeholder="Nr koszulki" aria-label="@($"Numer koszulki zawodnika {index + 1}")"
+                                 @bind-Value="model.Players[index].JerseyNumber" />
+                    <ValidationMessage For="() => model.Players[index].JerseyNumber" class="text-danger" />
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-outline-danger" @onclick="() => RemovePlayer(index)">Usuń</button>
+                </div>
+            </div>
+        }
+
+        <button type="button" class="btn btn-outline-secondary mb-4" @onclick="AddPlayer">Dodaj zawodnika</button>
+
+        <div>
+            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Zgłoś drużynę</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    private TeamForm model = CreateEmptyForm();
+    private IReadOnlyList<TournamentResponse> tournaments = [];
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isSubmitting;
+    private bool canRegister;
+
+    [SupplyParameterFromQuery(Name = "tournamentId")]
+    public Guid? PreselectedTournamentId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+        UpdateAccess();
+
+        model.TournamentId = PreselectedTournamentId;
+        tournaments = await TournamentApi.GetTournamentsAsync();
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged()
+    {
+        UpdateAccess();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateAccess() =>
+        canRegister = Session.IsInAnyRole([RoleNames.Participant, RoleNames.Organizer]);
+
+    private void AddPlayer() => model.Players.Add(new PlayerForm());
+
+    private void RemovePlayer(int index) => model.Players.RemoveAt(index);
+
+    private async Task HandleValidSubmitAsync()
+    {
+        if (model.TournamentId is not { } tournamentId)
+        {
+            return;
+        }
+
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            errorMessage = "Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie.";
+            return;
+        }
+
+        if (FirstPlayerError() is { } playerError)
+        {
+            errorMessage = playerError;
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var players = model.Players
+                .Select(p => new CreatePlayerRequest(p.FullName, p.JerseyNumber))
+                .ToList();
+
+            var request = new CreateTeamRequest(
+                tournamentId,
+                model.Name,
+                string.IsNullOrWhiteSpace(model.ContactEmail) ? null : model.ContactEmail,
+                players);
+
+            var result = await TeamApi.RegisterTeamAsync(request, accessToken);
+            if (result.Team is { } team)
+            {
+                successMessage = $"Drużyna „{team.Name}” została zgłoszona. Status: oczekuje na akceptację organizatora.";
+                model = CreateEmptyForm();
+                model.TournamentId = tournamentId;
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    // Walidacja zawodników: pola w pętli nie są objęte walidacją formularza, więc sprawdzamy je ręcznie.
+    private string? FirstPlayerError()
+    {
+        foreach (var player in model.Players)
+        {
+            var results = new List<ValidationResult>();
+            if (!Validator.TryValidateObject(player, new ValidationContext(player), results, validateAllProperties: true))
+            {
+                return results[0].ErrorMessage;
+            }
+        }
+
+        return null;
+    }
+
+    private static TeamForm CreateEmptyForm()
+    {
+        var form = new TeamForm();
+        form.Players.Add(new PlayerForm());
+        return form;
+    }
+
+    private sealed class TeamForm
+    {
+        [Required(ErrorMessage = "Wybierz turniej.")]
+        public Guid? TournamentId { get; set; }
+
+        [Required(ErrorMessage = "Podaj nazwę drużyny.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Nazwa drużyny musi mieć od 2 do 100 znaków.")]
+        public string Name { get; set; } = string.Empty;
+
+        [EmailAddress(ErrorMessage = "Podaj poprawny adres e-mail.")]
+        [StringLength(100, ErrorMessage = "Adres e-mail może mieć najwyżej 100 znaków.")]
+        public string? ContactEmail { get; set; }
+
+        public List<PlayerForm> Players { get; set; } = [];
+    }
+
+    private sealed class PlayerForm
+    {
+        [Required(ErrorMessage = "Podaj imię i nazwisko zawodnika.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Imię i nazwisko musi mieć od 2 do 100 znaków.")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Range(1, 99, ErrorMessage = "Numer koszulki musi być z zakresu 1–99.")]
+        public int? JerseyNumber { get; set; }
+    }
+}
