@@ -46,6 +46,31 @@ public sealed class TournamentApiClient(HttpClient http)
     }
 
     /// <summary>
+    /// Zwraca wybraną stronę turniejów z opcjonalnym wyszukiwaniem. Przy błędzie połączenia zwraca null.
+    /// </summary>
+    public async Task<PagedResponse<TournamentResponse>?> GetTournamentPageAsync(
+        int page,
+        int pageSize,
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        var query = $"api/v1/tournaments?page={page}&pageSize={pageSize}";
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query += $"&search={Uri.EscapeDataString(search)}";
+        }
+
+        try
+        {
+            return await http.GetFromJsonAsync<PagedResponse<TournamentResponse>>(query, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Zwraca pierwszą stronę turniejów. Przy błędzie połączenia zwraca pustą listę.
     /// </summary>
     public async Task<IReadOnlyList<TournamentResponse>> GetTournamentsAsync(CancellationToken cancellationToken = default)
