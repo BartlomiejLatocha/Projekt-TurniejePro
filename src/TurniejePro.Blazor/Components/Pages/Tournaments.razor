@@ -42,6 +42,7 @@ else
                     <th>System rozgrywek</th>
                     <th>Termin rozpoczęcia</th>
                     <th>Limit drużyn</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -53,6 +54,11 @@ else
                         <td>@FormatName(tournament.Format)</td>
                         <td>@tournament.StartsAt.ToLocalTime().ToString("g")</td>
                         <td>@tournament.MaxTeams</td>
+                        <td>
+                            <RoleView Roles="Organizer">
+                                <a href="tournaments/@tournament.Id/teams">Zgłoszenia</a>
+                            </RoleView>
+                        </td>
                     </tr>
                 }
             </tbody>
