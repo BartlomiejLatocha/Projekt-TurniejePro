@@ -46,6 +46,21 @@ public sealed class TournamentApiClient(HttpClient http)
     }
 
     /// <summary>
+    /// Zwraca szczegóły turnieju (w tym liczbę zgłoszonych drużyn). Przy błędzie zwraca null.
+    /// </summary>
+    public async Task<TournamentDetailsResponse?> GetTournamentAsync(Guid tournamentId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<TournamentDetailsResponse>($"api/v1/tournaments/{tournamentId}", cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Zwraca wybraną stronę turniejów z opcjonalnym wyszukiwaniem. Przy błędzie połączenia zwraca null.
     /// </summary>
     public async Task<PagedResponse<TournamentResponse>?> GetTournamentPageAsync(

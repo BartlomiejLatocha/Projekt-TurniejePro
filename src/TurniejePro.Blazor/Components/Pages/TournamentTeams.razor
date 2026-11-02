@@ -1,0 +1,171 @@
+@page "/tournaments/{TournamentId:guid}/teams"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Auth
+@using TurniejePro.Contracts.Teams
+@using TurniejePro.Contracts.Tournaments
+@implements IDisposable
+@inject AuthSession Session
+@inject TournamentApiClient TournamentApi
+@inject TeamApiClient TeamApi
+
+<PageTitle>Zgłoszenia drużyn</PageTitle>
+
+<h1>Zgłoszenia drużyn</h1>
+
+@if (!canManage)
+{
+    <div class="alert alert-warning" role="alert">
+        Akceptowanie zgłoszeń jest dostępne tylko dla organizatorów. Zaloguj się na konto z odpowiednią rolą.
+    </div>
+}
+else if (tournament is null)
+{
+    <p><em>Ładowanie turnieju...</em></p>
+}
+else
+{
+    <h2 class="h4">@tournament.Name</h2>
+    <p>Zaakceptowane drużyny: <strong>@acceptedCount</strong> z @tournament.MaxTeams</p>
+
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    @if (teams is null)
+    {
+        <div class="alert alert-danger" role="alert">Nie udało się pobrać zgłoszeń. Sprawdź połączenie z API.</div>
+    }
+    else if (teams.Count == 0)
+    {
+        <p class="text-muted">Brak zgłoszeń do tego turnieju.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Drużyna</th>
+                        <th>Kontakt</th>
+                        <th>Zawodnicy</th>
+                        <th>Status</th>
+                        <th>Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var team in teams)
+                    {
+                        <tr>
+                            <td>@team.Name</td>
+                            <td>@(team.ContactEmail ?? "—")</td>
+                            <td>@team.Players.Count</td>
+                            <td>@StatusName(team.Status)</td>
+                            <td class="d-flex gap-2">
+                                @if (team.Status != TeamRegistrationStatus.Accepted)
+                                {
+                                    <button class="btn btn-sm btn-success" disabled="@(busyTeamId is not null)" @onclick="() => DecideAsync(team, accept: true)">Akceptuj</button>
+                                }
+                                @if (team.Status != TeamRegistrationStatus.Rejected)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" disabled="@(busyTeamId is not null)" @onclick="() => DecideAsync(team, accept: false)">Odrzuć</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid TournamentId { get; set; }
+
+    private TournamentDetailsResponse? tournament;
+    private IReadOnlyList<TeamResponse>? teams;
+    private string? errorMessage;
+    private string? successMessage;
+    private Guid? busyTeamId;
+    private bool canManage;
+
+    private int acceptedCount => teams?.Count(t => t.Status == TeamRegistrationStatus.Accepted) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+        UpdateAccess();
+
+        if (canManage)
+        {
+            await LoadAsync();
+        }
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged()
+    {
+        UpdateAccess();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateAccess() => canManage = Session.IsInRole(RoleNames.Organizer);
+
+    private async Task LoadAsync()
+    {
+        tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+        teams = await TeamApi.GetTeamsAsync(TournamentId);
+    }
+
+    private async Task DecideAsync(TeamResponse team, bool accept)
+    {
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            errorMessage = "Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie.";
+            return;
+        }
+
+        busyTeamId = team.Id;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var result = accept
+                ? await TeamApi.AcceptTeamAsync(team.Id, accessToken)
+                : await TeamApi.RejectTeamAsync(team.Id, accessToken);
+
+            if (result.Team is { } updated)
+            {
+                successMessage = $"Drużyna „{updated.Name}” została {(accept ? "zaakceptowana" : "odrzucona")}.";
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage;
+            }
+
+            await LoadAsync();
+        }
+        finally
+        {
+            busyTeamId = null;
+        }
+    }
+
+    private static string StatusName(TeamRegistrationStatus status) => status switch
+    {
+        TeamRegistrationStatus.Pending => "Oczekuje",
+        TeamRegistrationStatus.Accepted => "Zaakceptowana",
+        TeamRegistrationStatus.Rejected => "Odrzucona",
+        _ => status.ToString()
+    };
+}
