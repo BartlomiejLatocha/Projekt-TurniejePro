@@ -191,4 +191,35 @@ public class TournamentTests
         Assert.Throws<InvalidOperationException>(() =>
             tournament.UpdateDetails("Turniej", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 2));
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void FullConstructor_BlankDiscipline_ShouldFallBackToDefaultDiscipline(string? blankDiscipline)
+    {
+        var tournament = new Tournament("Turniej", blankDiscipline!, TournamentFormat.Cup, DateTimeOffset.UtcNow, 8);
+
+        Assert.Equal("Ogólna", tournament.Discipline);
+    }
+
+    [Fact]
+    public void FullConstructor_MaxTeamsEqualToTwo_ShouldCreateTournament()
+    {
+        var tournament = new Tournament("Turniej", "Szachy", TournamentFormat.Cup, DateTimeOffset.UtcNow, 2);
+
+        Assert.Equal(2, tournament.MaxTeams);
+    }
+
+    [Fact]
+    public void UpdateDetails_MaxTeamsEqualToRegisteredTeams_ShouldUpdateMaxTeams()
+    {
+        var tournament = new Tournament("Turniej", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8);
+        tournament.Teams.Add(new Team("Drużyna 1", tournament.Id));
+        tournament.Teams.Add(new Team("Drużyna 2", tournament.Id));
+
+        tournament.UpdateDetails("Turniej", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 2);
+
+        Assert.Equal(2, tournament.MaxTeams);
+    }
 }

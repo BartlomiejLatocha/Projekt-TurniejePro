@@ -23,6 +23,8 @@ src/TurniejePro.Contracts/
 │   ├── TournamentFormat.cs           # enum
 │   ├── TournamentResponse.cs
 │   └── CreateTournamentRequest.cs
+├── Validation/
+│   └── FutureDateAttribute.cs        # własne atrybuty walidacji
 ├── Teams/                            # kolejne zasoby według tego samego wzoru
 └── ...
 ```
@@ -40,7 +42,7 @@ Przestrzeń nazw odpowiada folderowi: `TurniejePro.Contracts.<Zasób>`, np. `Tur
 | Daty i czas | `DateTimeOffset`, zawsze UTC, format ISO 8601 |
 | Enumy | serializowane jako tekst (`"League"`, nie `1`). Atrybut `[JsonConverter(typeof(JsonStringEnumConverter))]` na samym enumie. Wartości numerowane jawnie, od 1. |
 | Nullowalność | jawna: `string?` oznacza pole opcjonalne, pozostałe są wymagane |
-| Walidacja | atrybuty DataAnnotations na parametrach rekordów `*Request`, **bez** prefiksu `property:` (MVC rzuca wyjątek dla rekordu z walidacją na właściwościach, a API kończy żądanie błędem 500) |
+| Walidacja | atrybuty DataAnnotations na parametrach rekordów `*Request`, **bez** prefiksu `property:` (MVC rzuca wyjątek dla rekordu z walidacją na właściwościach, a API kończy żądanie błędem 500). Pole z enumem ma `[EnumDataType(typeof(...))]` (bez tego API przyjmie liczbę spoza enuma), a termin w przyszłości `[FutureDate]` z `Contracts/Validation` |
 | Listy | zawsze `PagedResponse<T>`, nigdy goła tablica |
 | Błędy | `ProblemDetails` (RFC 9457), bez stack trace'ów i danych wewnętrznych |
 | Ścieżki | `/api/v1/<zasób-w-liczbie-mnogiej>`, np. `/api/v1/tournaments` |
@@ -107,14 +109,15 @@ public sealed record TournamentResponse(
 
 ```csharp
 using System.ComponentModel.DataAnnotations;
+using TurniejePro.Contracts.Validation;
 
 namespace TurniejePro.Contracts.Tournaments;
 
 public sealed record CreateTournamentRequest(
     [Required, StringLength(100, MinimumLength = 3)] string Name,
     [Required, StringLength(50)] string Discipline,
-    TournamentFormat Format,
-    DateTimeOffset StartsAt,
+    [EnumDataType(typeof(TournamentFormat))] TournamentFormat Format,
+    [FutureDate] DateTimeOffset StartsAt,
     [Range(2, 128)] int MaxTeams);
 ```
 
@@ -137,6 +140,7 @@ Zasady do zapamiętania:
 
 - DTO nie zawiera logiki, tylko dane i atrybuty walidacji.
 - Atrybuty walidacji stawiamy na parametrach rekordu (bez `property:`). Walidują je MVC i API, ale nie `<DataAnnotationsValidator />` z Blazora.
+- Reguły walidacji kontraktów testujemy pomocnikiem `MvcValidation` z projektu testów (wzór: `TournamentRequestValidationTests`), a nie przez `Validator.TryValidateObject`: ten nie widzi atrybutów na parametrach rekordu, więc każdy model wyglądałby na poprawny. Test `RequestContractsTests` sprawdza przy okazji, że żaden nowy `*Request` nie ma atrybutów na właściwościach (to powodowało błąd 500).
 - Formularze Blazora **nie wiążą się bezpośrednio z rekordami `*Request`**. Mają własny model formularza (klasa z właściwościami i atrybutami walidacji, np. `LoginModel` w `Login.razor`), a rekord z `Contracts` powstaje dopiero przy wysyłaniu do API. Reguły walidacji z kontraktu powtarzamy w modelu formularza, żeby użytkownik dostał komunikat przed wysłaniem.
 - Pole opcjonalne oznaczamy `?` (np. `string? Description`), a nie wartością domyślną.
 - Typy `Domain` i `Data` nie pojawiają się w kontraktach.
