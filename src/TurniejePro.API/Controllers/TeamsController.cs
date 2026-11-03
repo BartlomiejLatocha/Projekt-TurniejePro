@@ -42,13 +42,13 @@ public class TeamsController : ControllerBase
             });
         }
 
-        if (!tournament.CanRegisterTeam())
+        if (tournament.GetRegistrationBlockReason(DateTimeOffset.UtcNow) is { } blockReason)
         {
             return BadRequest(new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Rejestracja niedozwolona",
-                Detail = "Turniej został już rozpoczęty lub osiągnięto maksymalny limit zarejestrowanych drużyn."
+                Detail = DescribeRegistrationBlock(blockReason, tournament.MaxTeams)
             });
         }
 
@@ -238,4 +238,12 @@ public class TeamsController : ControllerBase
         var teams = await _unitOfWork.Teams.GetByTournamentIdAsync(tournamentId, cancellationToken);
         return Ok(teams.Select(t => t.ToResponse()).ToList());
     }
+
+    private static string DescribeRegistrationBlock(Domain.Enums.RegistrationBlockReason reason, int maxTeams) => reason switch
+    {
+        Domain.Enums.RegistrationBlockReason.TournamentStarted => "Turniej został już rozpoczęty.",
+        Domain.Enums.RegistrationBlockReason.DeadlinePassed => "Upłynął termin zgłoszeń (termin rozpoczęcia turnieju).",
+        Domain.Enums.RegistrationBlockReason.LimitReached => $"Osiągnięto maksymalny limit zarejestrowanych drużyn ({maxTeams}).",
+        _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Nieznany powód blokady zgłoszeń.")
+    };
 }

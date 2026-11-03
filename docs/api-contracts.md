@@ -87,6 +87,18 @@ Typ: `PagedResponse<T>` z `TurniejePro.Contracts.Common`. Parametry zapytania: `
 }
 ```
 
+### Zgłoszenia drużyn: kiedy API odmawia
+
+`POST /api/v1/teams` zwraca `400` z tytułem „Rejestracja niedozwolona”, gdy turniej nie przyjmuje zgłoszeń. Powód ustala `Tournament.GetRegistrationBlockReason`; gdy zachodzi kilka naraz, obowiązuje kolejność z tabeli.
+
+| Powód | Warunek | Komunikat (`detail`) |
+|---|---|---|
+| Start turnieju | turniej został rozpoczęty | Turniej został już rozpoczęty. |
+| Termin | chwila zgłoszenia nie jest wcześniejsza niż termin rozpoczęcia turnieju (`startsAt`) | Upłynął termin zgłoszeń (termin rozpoczęcia turnieju). |
+| Limit | liczba zgłoszonych drużyn osiągnęła `maxTeams` | Osiągnięto maksymalny limit zarejestrowanych drużyn (N). |
+
+Osobnego terminu zgłoszeń nie ma: zgłoszenia przyjmowane są do chwili rozpoczęcia turnieju. Do limitu liczą się wszystkie zgłoszone drużyny, także oczekujące i odrzucone.
+
 ## Wzorzec: jak wygląda DTO
 
 Pierwszy zasób (`Tournaments`) jest wzorem do kopiowania przy kolejnych. Zasób Turnieje może go zmieniać, ale pozostałe zasoby trzymają się tego samego kształtu.
