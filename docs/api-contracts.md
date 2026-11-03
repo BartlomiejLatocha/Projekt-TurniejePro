@@ -137,6 +137,7 @@ Zasady do zapamiętania:
 
 - DTO nie zawiera logiki, tylko dane i atrybuty walidacji.
 - Atrybuty walidacji stawiamy na parametrach rekordu (bez `property:`). Walidują je MVC i API, ale nie `<DataAnnotationsValidator />` z Blazora.
+- Reguły walidacji kontraktów testujemy pomocnikiem `MvcValidation` z projektu testów (wzór: `TournamentRequestValidationTests`), a nie przez `Validator.TryValidateObject`: ten nie widzi atrybutów na parametrach rekordu, więc każdy model wyglądałby na poprawny. Test `RequestContractsTests` sprawdza przy okazji, że żaden nowy `*Request` nie ma atrybutów na właściwościach (to powodowało błąd 500).
 - Formularze Blazora **nie wiążą się bezpośrednio z rekordami `*Request`**. Mają własny model formularza (klasa z właściwościami i atrybutami walidacji, np. `LoginModel` w `Login.razor`), a rekord z `Contracts` powstaje dopiero przy wysyłaniu do API. Reguły walidacji z kontraktu powtarzamy w modelu formularza, żeby użytkownik dostał komunikat przed wysłaniem.
 - Pole opcjonalne oznaczamy `?` (np. `string? Description`), a nie wartością domyślną.
 - Typy `Domain` i `Data` nie pojawiają się w kontraktach.
