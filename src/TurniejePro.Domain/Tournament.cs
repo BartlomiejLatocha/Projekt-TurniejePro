@@ -72,6 +72,31 @@ public class Tournament
 
     public bool CanRegisterTeam() => !IsStarted && Teams.Count < MaxTeams;
 
+    /// <summary>
+    /// Zwraca powód, dla którego turniej nie przyjmuje zgłoszeń w podanej chwili, albo null, gdy zgłoszenia są otwarte.
+    /// Zgłoszenia zamyka rozpoczęcie turnieju, upływ jego terminu (<see cref="StartsAt"/>) i osiągnięcie limitu drużyn.
+    /// Gdy zachodzi kilka powodów naraz, zwracany jest pierwszy z tej listy.
+    /// </summary>
+    public RegistrationBlockReason? GetRegistrationBlockReason(DateTimeOffset now)
+    {
+        if (IsStarted)
+        {
+            return RegistrationBlockReason.TournamentStarted;
+        }
+
+        if (now >= StartsAt)
+        {
+            return RegistrationBlockReason.DeadlinePassed;
+        }
+
+        if (!CanRegisterTeam())
+        {
+            return RegistrationBlockReason.LimitReached;
+        }
+
+        return null;
+    }
+
     public void UpdateDetails(
         string name,
         string discipline,
