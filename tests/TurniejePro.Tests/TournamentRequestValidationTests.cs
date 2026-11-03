@@ -29,6 +29,16 @@ public class TournamentRequestValidationTests
 
     public static TheoryData<RequestKind, int> ValidMaxTeams => ForBothKinds(2, 3, 127, 128);
 
+    public static TheoryData<RequestKind, int> UndefinedFormats => ForBothKinds(0, 3, 99, -1, int.MaxValue);
+
+    public static TheoryData<RequestKind, TournamentFormat> DefinedFormats =>
+        ForBothKinds(TournamentFormat.League, TournamentFormat.Cup);
+
+    /// <summary>Przesunięcie terminu względem chwili wywołania testu, w minutach.</summary>
+    public static TheoryData<RequestKind, int> PastStartOffsetsInMinutes => ForBothKinds(0, -1, -60, -1440, -525600);
+
+    public static TheoryData<RequestKind, int> FutureStartOffsetsInMinutes => ForBothKinds(2, 60, 1440, 525600);
+
     [Theory]
     [InlineData(RequestKind.Create)]
     [InlineData(RequestKind.Update)]
@@ -112,13 +122,66 @@ public class TournamentRequestValidationTests
     }
 
     [Theory]
+    [MemberData(nameof(UndefinedFormats))]
+    public void Format_ValueOutsideEnum_ReportsFormatError(RequestKind kind, int format)
+    {
+        var errors = MvcValidation.Validate(Build(kind, format: (TournamentFormat)format));
+
+        AssertOnlyFieldHasError(errors, "Format");
+    }
+
+    [Theory]
+    [MemberData(nameof(DefinedFormats))]
+    public void Format_ValueFromEnum_IsValid(RequestKind kind, TournamentFormat format)
+    {
+        var errors = MvcValidation.Validate(Build(kind, format: format));
+
+        Assert.Empty(errors);
+    }
+
+    [Theory]
+    [MemberData(nameof(PastStartOffsetsInMinutes))]
+    public void StartsAt_NotInFuture_ReportsStartsAtError(RequestKind kind, int minutesFromNow)
+    {
+        var errors = MvcValidation.Validate(Build(kind, startsAt: DateTimeOffset.UtcNow.AddMinutes(minutesFromNow)));
+
+        AssertOnlyFieldHasError(errors, "StartsAt");
+    }
+
+    [Theory]
+    [InlineData(RequestKind.Create)]
+    [InlineData(RequestKind.Update)]
+    public void StartsAt_DefaultValue_ReportsStartsAtError(RequestKind kind)
+    {
+        // Tak wygląda żądanie, w którym klient pominął pole startsAt
+        var errors = MvcValidation.Validate(Build(kind, startsAt: default(DateTimeOffset)));
+
+        AssertOnlyFieldHasError(errors, "StartsAt");
+    }
+
+    [Theory]
+    [MemberData(nameof(FutureStartOffsetsInMinutes))]
+    public void StartsAt_InFuture_IsValid(RequestKind kind, int minutesFromNow)
+    {
+        var errors = MvcValidation.Validate(Build(kind, startsAt: DateTimeOffset.UtcNow.AddMinutes(minutesFromNow)));
+
+        Assert.Empty(errors);
+    }
+
+    [Theory]
     [InlineData(RequestKind.Create)]
     [InlineData(RequestKind.Update)]
     public void SeveralInvalidFields_ReportsEachFieldOnce(RequestKind kind)
     {
-        var errors = MvcValidation.Validate(Build(kind, name: "AB", discipline: string.Empty, maxTeams: 1));
+        var errors = MvcValidation.Validate(Build(
+            kind,
+            name: "AB",
+            discipline: string.Empty,
+            maxTeams: 1,
+            format: (TournamentFormat)99,
+            startsAt: default(DateTimeOffset)));
 
-        Assert.Equal(["Discipline", "MaxTeams", "Name"], errors.Keys.Order());
+        Assert.Equal(["Discipline", "Format", "MaxTeams", "Name", "StartsAt"], errors.Keys.Order());
     }
 
     private static void AssertOnlyFieldHasError(IReadOnlyDictionary<string, string[]> errors, string field)
@@ -131,14 +194,16 @@ public class TournamentRequestValidationTests
         RequestKind kind,
         string? name = "Liga Szkolna",
         string? discipline = "Piłka nożna",
-        int maxTeams = 8)
+        int maxTeams = 8,
+        TournamentFormat format = TournamentFormat.League,
+        DateTimeOffset? startsAt = null)
     {
-        var startsAt = DateTimeOffset.UtcNow.AddDays(7);
+        var start = startsAt ?? DateTimeOffset.UtcNow.AddDays(7);
 
         return kind switch
         {
-            RequestKind.Create => new CreateTournamentRequest(name!, discipline!, TournamentFormat.League, startsAt, maxTeams),
-            RequestKind.Update => new UpdateTournamentRequest(name!, discipline!, TournamentFormat.League, startsAt, maxTeams),
+            RequestKind.Create => new CreateTournamentRequest(name!, discipline!, format, start, maxTeams),
+            RequestKind.Update => new UpdateTournamentRequest(name!, discipline!, format, start, maxTeams),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Nieznany rodzaj żądania.")
         };
     }

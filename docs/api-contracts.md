@@ -23,6 +23,8 @@ src/TurniejePro.Contracts/
 │   ├── TournamentFormat.cs           # enum
 │   ├── TournamentResponse.cs
 │   └── CreateTournamentRequest.cs
+├── Validation/
+│   └── FutureDateAttribute.cs        # własne atrybuty walidacji
 ├── Teams/                            # kolejne zasoby według tego samego wzoru
 └── ...
 ```
@@ -40,7 +42,7 @@ Przestrzeń nazw odpowiada folderowi: `TurniejePro.Contracts.<Zasób>`, np. `Tur
 | Daty i czas | `DateTimeOffset`, zawsze UTC, format ISO 8601 |
 | Enumy | serializowane jako tekst (`"League"`, nie `1`). Atrybut `[JsonConverter(typeof(JsonStringEnumConverter))]` na samym enumie. Wartości numerowane jawnie, od 1. |
 | Nullowalność | jawna: `string?` oznacza pole opcjonalne, pozostałe są wymagane |
-| Walidacja | atrybuty DataAnnotations na parametrach rekordów `*Request`, **bez** prefiksu `property:` (MVC rzuca wyjątek dla rekordu z walidacją na właściwościach, a API kończy żądanie błędem 500) |
+| Walidacja | atrybuty DataAnnotations na parametrach rekordów `*Request`, **bez** prefiksu `property:` (MVC rzuca wyjątek dla rekordu z walidacją na właściwościach, a API kończy żądanie błędem 500). Pole z enumem ma `[EnumDataType(typeof(...))]` (bez tego API przyjmie liczbę spoza enuma), a termin w przyszłości `[FutureDate]` z `Contracts/Validation` |
 | Listy | zawsze `PagedResponse<T>`, nigdy goła tablica |
 | Błędy | `ProblemDetails` (RFC 9457), bez stack trace'ów i danych wewnętrznych |
 | Ścieżki | `/api/v1/<zasób-w-liczbie-mnogiej>`, np. `/api/v1/tournaments` |
@@ -107,14 +109,15 @@ public sealed record TournamentResponse(
 
 ```csharp
 using System.ComponentModel.DataAnnotations;
+using TurniejePro.Contracts.Validation;
 
 namespace TurniejePro.Contracts.Tournaments;
 
 public sealed record CreateTournamentRequest(
     [Required, StringLength(100, MinimumLength = 3)] string Name,
     [Required, StringLength(50)] string Discipline,
-    TournamentFormat Format,
-    DateTimeOffset StartsAt,
+    [EnumDataType(typeof(TournamentFormat))] TournamentFormat Format,
+    [FutureDate] DateTimeOffset StartsAt,
     [Range(2, 128)] int MaxTeams);
 ```
 

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using TurniejePro.Api.Auth;
 using TurniejePro.Contracts.Tournaments;
@@ -51,6 +52,43 @@ public class TournamentValidationApiTests : IClassFixture<CustomWebApplicationFa
         var response = await _client.PutAsJsonAsync($"/api/v1/tournaments/{Guid.NewGuid()}", request);
 
         await AssertBadRequestWithErrorsOnlyForAsync(response, "MaxTeams");
+    }
+
+    // Żądania zapisane jako surowy JSON, bo klient może wysłać liczbę zamiast nazwy formatu albo pominąć pole.
+    public static TheoryData<string, string> RawBodiesBreakingOneRule => new()
+    {
+        { """{"name":"Liga Szkolna","discipline":"Szachy","format":99,"startsAt":"2099-01-01T10:00:00Z","maxTeams":8}""", "Format" },
+        { """{"name":"Liga Szkolna","discipline":"Szachy","startsAt":"2099-01-01T10:00:00Z","maxTeams":8}""", "Format" },
+        { """{"name":"Liga Szkolna","discipline":"Szachy","format":"Cup","maxTeams":8}""", "StartsAt" },
+        { """{"name":"Liga Szkolna","discipline":"Szachy","format":"Cup","startsAt":"2001-01-01T10:00:00Z","maxTeams":8}""", "StartsAt" }
+    };
+
+    [Theory]
+    [MemberData(nameof(RawBodiesBreakingOneRule))]
+    public async Task CreateTournament_WithRawBodyBreakingOneRule_Returns400WithThatFieldError(string json, string field)
+    {
+        var response = await SendRawAsync(HttpMethod.Post, "/api/v1/tournaments", json);
+
+        await AssertBadRequestWithErrorsOnlyForAsync(response, field);
+    }
+
+    [Theory]
+    [MemberData(nameof(RawBodiesBreakingOneRule))]
+    public async Task UpdateTournament_WithRawBodyBreakingOneRule_Returns400WithThatFieldError(string json, string field)
+    {
+        var response = await SendRawAsync(HttpMethod.Put, $"/api/v1/tournaments/{Guid.NewGuid()}", json);
+
+        await AssertBadRequestWithErrorsOnlyForAsync(response, field);
+    }
+
+    private async Task<HttpResponseMessage> SendRawAsync(HttpMethod method, string url, string json)
+    {
+        using var request = new HttpRequestMessage(method, url)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+
+        return await _client.SendAsync(request);
     }
 
     private static async Task AssertBadRequestWithErrorsOnlyForAsync(HttpResponseMessage response, params string[] fields)
