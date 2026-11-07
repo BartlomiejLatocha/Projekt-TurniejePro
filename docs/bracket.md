@@ -26,7 +26,19 @@ Pięć drużyn A–E (rozstawionych w tej kolejności), `?` to miejsce czekając
 
 Trzy drużyny A–C: runda 1: A (wolny los), B–C, a finał A–? czeka na zwycięzcę meczu B–C.
 
+## Awans zwycięzców
+
+`KnockoutBracketAdvancer.AdvanceWinner(rounds, roundNumber, position, winnerId)` zapisuje zwycięzcę meczu i wpisuje go do następnej rundy. Drabinka jest niemutowalna: metoda zwraca nową drabinkę, a przekazana zostaje bez zmian.
+
+- Zwycięzca z meczu na pozycji **nieparzystej** trafia do następnego meczu jako gospodarz, z **parzystej** jako gość (mecz `p` w rundzie `r` zasila mecz `ceil(p / 2)` w rundzie `r + 1`).
+- Zwycięzca finału zostaje mistrzem: `KnockoutBracketAdvancer.GetChampion(rounds)` zwraca go albo `null`, dopóki finał nie jest rozstrzygnięty.
+- Zwycięzcą może być tylko jedna z dwóch drużyn meczu (inaczej `ArgumentException`). Mecz z wolnym losem nie ma wyniku, a mecz, w którym nie znamy jeszcze obu drużyn, nie może być rozstrzygnięty (`InvalidOperationException`). Nieistniejąca runda lub pozycja daje `ArgumentOutOfRangeException`.
+- Ponowne wskazanie tego samego zwycięzcy nic nie zmienia.
+- **Korekta wyniku:** zwycięzcę można zmienić, dopóki następny mecz nie został rozstrzygnięty. Wtedy nowy zwycięzca zastępuje starego w następnym meczu. Po rozstrzygnięciu następnego meczu korekta kończy się `InvalidOperationException`, bo zmieniłaby przebieg dalszych meczów.
+
 ## Testy
+
+`KnockoutBracketAdvancerTests` sprawdza awans (gospodarz i gość, wolne losy, korekty, błędy) oraz rozegranie całej drabinki dla 2–34, 64, 100 i 128 drużyn: przy wygrywającym zawsze wyżej rozstawionym mistrzem jest pierwsza drużyna, a przy naprzemiennych zwycięzcach każda drużyna oprócz mistrza przegrywa dokładnie raz.
 
 `KnockoutBracketGeneratorTests` pokrywa dokładny układ dla 2, 3, 4, 5 i 8 drużyn. `KnockoutBracketInvariantsTests` sprawdza własności drabinki dla 2–34 oraz 64, 100 i 128 drużyn (128 to limit turnieju), osobnym testem dla każdej: liczba rund i meczów, numeracja, liczba i adresaci wolnych losów, wpisanie drużyn z wolnym losem do drugiej rundy, `n - 1` meczów do rozegrania, wyżej rozstawiony jako gospodarz, rozdzielenie dwóch najwyżej rozstawionych oraz brak powtórzeń drużyn w rundzie. Nowy rozmiar dopisuje się w `AllTeamCounts`.
 
