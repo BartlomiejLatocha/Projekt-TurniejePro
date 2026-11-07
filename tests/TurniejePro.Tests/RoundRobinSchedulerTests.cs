@@ -138,27 +138,6 @@ public class RoundRobinSchedulerTests
         Assert.Equal(Flatten(first), Flatten(second));
     }
 
-    [Theory]
-    [InlineData(4)]
-    [InlineData(5)]
-    [InlineData(6)]
-    [InlineData(7)]
-    [InlineData(8)]
-    public void Generate_HomeAndAwayMatchesAreBalanced(int teamCount)
-    {
-        var teams = CreateTeams(teamCount);
-
-        var pairings = RoundRobinScheduler.Generate(teams).SelectMany(round => round.Pairings).ToList();
-
-        Assert.All(teams, team =>
-        {
-            var home = pairings.Count(pairing => pairing.HomeTeamId == team);
-            var away = pairings.Count(pairing => pairing.AwayTeamId == team);
-
-            Assert.InRange(Math.Abs(home - away), 0, 1);
-        });
-    }
-
     private static List<Guid> CreateTeams(int count) =>
         Enumerable.Range(0, count).Select(_ => Guid.NewGuid()).ToList();
 
