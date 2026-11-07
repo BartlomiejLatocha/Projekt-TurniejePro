@@ -32,6 +32,10 @@ Drużyny, których nie rozstrzyga żadna z zasad 1–4, dostają **to samo miejs
 
 Tabela jest funkcją meczów, więc nie przechowuje stanu: po zmianie wyniku meczu (`Match.SetResult` wywołane ponownie) wystarczy policzyć ją od nowa.
 
+## Testy
+
+`StandingsCalculatorTests` sprawdza punktację, każdą zasadę remisu i pomijane mecze. `StandingsScenarioTests` dodaje scenariusze remisów (trzy drużyny rozstrzygane meczami bezpośrednimi, w których mecze z drużynami spoza grupy się nie liczą, oraz wspólne miejsce przy remisie w meczu bezpośrednim), korekty wyniku (zmiana zwycięzcy, zamiana wygranej na remis, korekta zmieniająca rozstrzygnięcie remisu, powtarzalność) oraz własności tabeli całej ligi z terminarza round-robin dla 2–16 drużyn: spójność sum (wygrane = porażki, bramki zdobyte = stracone, suma punktów), poprawna kolejność wierszy, miejsca wspólne tylko dla sąsiednich wierszy i niezależność od kolejności meczów.
+
 ## Wymagania wejścia
 
 Listy drużyn i meczów różne od `null`, drużyny bez powtórzeń (inaczej `ArgumentException`).
