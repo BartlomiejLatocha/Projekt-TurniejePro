@@ -26,6 +26,10 @@ Pięć drużyn A–E (rozstawionych w tej kolejności), `?` to miejsce czekając
 
 Trzy drużyny A–C: runda 1: A (wolny los), B–C, a finał A–? czeka na zwycięzcę meczu B–C.
 
+## Testy
+
+`KnockoutBracketGeneratorTests` pokrywa dokładny układ dla 2, 3, 4, 5 i 8 drużyn. `KnockoutBracketInvariantsTests` sprawdza własności drabinki dla 2–34 oraz 64, 100 i 128 drużyn (128 to limit turnieju), osobnym testem dla każdej: liczba rund i meczów, numeracja, liczba i adresaci wolnych losów, wpisanie drużyn z wolnym losem do drugiej rundy, `n - 1` meczów do rozegrania, wyżej rozstawiony jako gospodarz, rozdzielenie dwóch najwyżej rozstawionych oraz brak powtórzeń drużyn w rundzie. Nowy rozmiar dopisuje się w `AllTeamCounts`.
+
 ## Model
 
 - `BracketRound`: numer rundy (od 1, ostatnia to finał) i mecze od góry drabinki.
