@@ -33,6 +33,10 @@ Trzy drużyny A, B, C (nieparzysta liczba, jedna pauzuje):
 | 2 | C–A | B |
 | 3 | B–C | A |
 
+## Testy
+
+`RoundRobinScheduleInvariantsTests` sprawdza własności terminarza dla 2–16 i 64 drużyn, osobnym testem dla każdej własności: brak powtórzonych par, każda para dokładnie raz, liczba kolejek i meczów w kolejce, nikt nie gra dwa razy w kolejce ani sam ze sobą, każda drużyna rozgrywa `n - 1` meczów, pauzy (nikt przy parzystej liczbie, każdy dokładnie raz przy nieparzystej), numeracja kolejek od 1 i równowaga gospodarz-gość. Nowy rozmiar turnieju dopisuje się w `AllTeamCounts`. Dokładne przykłady dla 3 i 4 drużyn są w `RoundRobinSchedulerTests`.
+
 ## Jak to działa
 
 Metoda okręgu: drużyny stoją na pozycjach, w każdej kolejce pierwsza i ostatnia tworzą parę, druga z przedostatnią i tak dalej. Po kolejce wszystkie pozycje oprócz pierwszej obracają się o jedno miejsce. Przy nieparzystej liczbie drużyn pierwszą (stałą) pozycję zajmuje pauza, więc drużyna naprzeciw niej w danej kolejce nie gra.
