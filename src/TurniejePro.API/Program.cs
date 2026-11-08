@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDataServices(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddScoped<ScheduleService>();
+builder.Services.AddScoped<MatchResultService>();
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
