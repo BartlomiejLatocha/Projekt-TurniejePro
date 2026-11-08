@@ -12,7 +12,7 @@ public class UnitOfWork : IUnitOfWork
 
     public ITournamentRepository Tournaments { get; }
     public ITeamRepository Teams { get; }
-    public IRepository<Match> Matches { get; }
+    public IMatchRepository Matches { get; }
     public IRepository<CollectibleToken> Tokens { get; }
 
     public UnitOfWork(TurniejeProDbContext context)
@@ -20,7 +20,7 @@ public class UnitOfWork : IUnitOfWork
         _context = context;
         Tournaments = new TournamentRepository(context);
         Teams = new TeamRepository(context);
-        Matches = new Repository<Match>(context);
+        Matches = new MatchRepository(context);
         Tokens = new Repository<CollectibleToken>(context);
     }
 

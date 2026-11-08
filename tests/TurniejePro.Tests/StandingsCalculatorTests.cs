@@ -1,5 +1,6 @@
 using TurniejePro.Domain;
 using TurniejePro.Domain.Standings;
+using Xunit;
 
 namespace TurniejePro.Tests;
 
@@ -139,10 +140,10 @@ public class StandingsCalculatorTests
     public void Calculate_IgnoresMatchesThatAreNotFinished()
     {
         var (teams, _) = CreateTeams("A", "B");
-        var scheduled = new Match(TournamentId, 1, teams[0], teams[1]);
-        var inProgress = new Match(TournamentId, 1, teams[0], teams[1]);
+        var scheduled = new Match(TournamentId, 1, 1, teams[0], teams[1]);
+        var inProgress = new Match(TournamentId, 1, 1, teams[0], teams[1]);
         inProgress.StartMatch();
-        var cancelled = new Match(TournamentId, 1, teams[0], teams[1]);
+        var cancelled = new Match(TournamentId, 1, 1, teams[0], teams[1]);
         cancelled.Cancel();
 
         var rows = StandingsCalculator.Calculate(teams, [scheduled, inProgress, cancelled]);
@@ -187,7 +188,7 @@ public class StandingsCalculatorTests
     public void Calculate_IgnoresMatchesWithoutBothTeams()
     {
         var (teams, _) = CreateTeams("A", "B");
-        var withoutAway = new Match(TournamentId, 1, teams[0], awayTeamId: null);
+        var withoutAway = new Match(TournamentId, 1, 1, teams[0], awayTeamId: null);
         withoutAway.SetResult(1, 0);
 
         var rows = StandingsCalculator.Calculate(teams, [withoutAway]);
@@ -204,7 +205,7 @@ public class StandingsCalculatorTests
 
     private static Match Finished(Guid home, Guid away, int homeScore, int awayScore)
     {
-        var match = new Match(TournamentId, 1, home, away);
+        var match = new Match(TournamentId, 1, 1, home, away);
         match.SetResult(homeScore, awayScore);
 
         return match;

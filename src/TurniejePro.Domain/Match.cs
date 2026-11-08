@@ -11,6 +11,8 @@ public class Match
     public Guid TournamentId { get; set; }
     public Tournament? Tournament { get; set; }
     public int Round { get; set; }
+    public int Position { get; private set; }
+    public bool IsBye { get; private set; }
     public Guid? HomeTeamId { get; set; }
     public Team? HomeTeam { get; set; }
     public Guid? AwayTeamId { get; set; }
@@ -33,6 +35,7 @@ public class Match
     public Match(
         Guid tournamentId,
         int round,
+        int position,
         Guid? homeTeamId = null,
         Guid? awayTeamId = null,
         DateTimeOffset? scheduledAt = null)
@@ -42,13 +45,28 @@ public class Match
             throw new ArgumentOutOfRangeException(nameof(round), "Numer rundy musi być większy lub równy 1.");
         }
 
+        if (position < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(position), "Pozycja meczu w rundzie musi być większa lub równa 1.");
+        }
+
         Id = Guid.NewGuid();
         TournamentId = tournamentId;
         Round = round;
+        Position = position;
         HomeTeamId = homeTeamId;
         AwayTeamId = awayTeamId;
         ScheduledAt = scheduledAt;
         Status = MatchStatus.Scheduled;
+    }
+
+    /// <summary>
+    /// Oznacza mecz jako wolny los (Bye) i automatycznie go kończy.
+    /// </summary>
+    public void MarkAsBye()
+    {
+        IsBye = true;
+        Status = MatchStatus.Finished;
     }
 
     /// <summary>

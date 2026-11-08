@@ -107,7 +107,7 @@ public class RepositoryTests : IDisposable
         var tournament = new Tournament("Wielki Turniej", "Siatkówka", TournamentFormat.League, DateTimeOffset.UtcNow, 8);
         var team = new Team("Sokoły", tournament.Id);
         team.AddPlayer("Jan Nowak", 5);
-        var match = new Match(tournament.Id, 1, team.Id, null);
+        var match = new Match(tournament.Id, 1, 1, team.Id, null);
         var token = new CollectibleToken("SOKOL", "Sokół", tournament.Id);
 
         context.Tournaments.Add(tournament);
@@ -307,7 +307,7 @@ public class RepositoryTests : IDisposable
 
         var tournament = new Tournament("Turniej UoW");
         var team = new Team("Drużyna UoW", tournament.Id);
-        var match = new Match(tournament.Id, 1);
+        var match = new Match(tournament.Id, 1, 1);
         var token = new CollectibleToken("UOW1", "Token UoW", tournament.Id);
 
         await uow.Tournaments.AddAsync(tournament);
