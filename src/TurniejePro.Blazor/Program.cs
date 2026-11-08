@@ -1,5 +1,6 @@
 using TurniejePro.Blazor.Components;
 using TurniejePro.Blazor.Services;
+using TurniejePro.Domain.Scheduling;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,7 @@ builder.Services.AddHttpClient<AuthApiClient>(ConfigureApiBaseAddress);
 builder.Services.AddHttpClient<TeamApiClient>(ConfigureApiBaseAddress);
 builder.Services.AddHttpClient<TournamentApiClient>(ConfigureApiBaseAddress);
 builder.Services.AddScoped<AuthSession>();
+builder.Services.AddScoped<ScheduleService>();
 
 var app = builder.Build();
 

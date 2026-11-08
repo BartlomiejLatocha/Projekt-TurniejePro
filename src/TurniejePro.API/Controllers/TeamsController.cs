@@ -106,6 +106,7 @@ public class TeamsController : ControllerBase
     [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> AcceptTeam(Guid id, CancellationToken cancellationToken)
@@ -139,6 +140,18 @@ public class TeamsController : ControllerBase
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Turniej rozpoczęty",
                 Detail = "Nie można akceptować zgłoszeń w turnieju, który został już rozpoczęty."
+            });
+        }
+
+        // Sprawdzenie, czy dla turnieju wygenerowano już terminarz
+        var hasSchedule = await _unitOfWork.Matches.HasScheduleAsync(team.TournamentId, cancellationToken);
+        if (hasSchedule)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Terminarz już istnieje",
+                Detail = "Nie można akceptować zgłoszeń po wygenerowaniu terminarza turnieju."
             });
         }
 

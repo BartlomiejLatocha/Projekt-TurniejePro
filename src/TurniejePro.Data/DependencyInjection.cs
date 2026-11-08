@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
         services.AddScoped<ITournamentRepository, TournamentRepository>();
         services.AddScoped<ITeamRepository, TeamRepository>();
+        services.AddScoped<IMatchRepository, MatchRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

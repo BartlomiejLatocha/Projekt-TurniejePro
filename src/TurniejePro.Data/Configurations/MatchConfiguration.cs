@@ -13,8 +13,18 @@ public class MatchConfiguration : IEntityTypeConfiguration<Match>
         builder.Property(m => m.Round)
             .IsRequired();
 
+        builder.Property(m => m.Position)
+            .IsRequired();
+
+        builder.Property(m => m.IsBye)
+            .IsRequired();
+
         builder.Property(m => m.Status)
             .IsRequired();
+
+        // Unikalny indeks gwarantujący unikalność pozycji meczu w danej rundzie turnieju
+        builder.HasIndex(m => new { m.TournamentId, m.Round, m.Position })
+            .IsUnique();
 
         builder.HasOne(m => m.HomeTeam)
             .WithMany()

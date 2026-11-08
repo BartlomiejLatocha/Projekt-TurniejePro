@@ -38,7 +38,7 @@ public class TurniejeProDbContextTests : IDisposable
         var tournament = new Tournament("Turniej Zimowy", "Siatkówka", TournamentFormat.League, DateTimeOffset.UtcNow, 8);
         var team = new Team("Sparta", tournament.Id, Guid.NewGuid(), "sparta@turniej.pl");
         var player = team.AddPlayer("Piotr Zieliński", 8);
-        var match = new Match(tournament.Id, 1, team.Id, null);
+        var match = new Match(tournament.Id, 1, 1, team.Id, null);
         var token = new CollectibleToken("ZIMA2026", "Zimowy Medal", tournament.Id, "Token za udział");
 
         await using (var context = new TurniejeProDbContext(_options))
@@ -78,7 +78,7 @@ public class TurniejeProDbContextTests : IDisposable
         var tournament = new Tournament("Turniej do usunięcia", "Koszykówka", TournamentFormat.Cup, DateTimeOffset.UtcNow, 4);
         var team = new Team("Delfiny", tournament.Id);
         team.AddPlayer("Marek Nowak", 12);
-        var match = new Match(tournament.Id, 1, team.Id, null);
+        var match = new Match(tournament.Id, 1, 1, team.Id, null);
         var token = new CollectibleToken("DELF2026", "Delfin", tournament.Id);
 
         await using (var context = new TurniejeProDbContext(_options))

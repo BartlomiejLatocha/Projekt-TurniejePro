@@ -269,6 +269,12 @@ namespace TurniejePro.Data.Migrations
                     b.Property<Guid?>("HomeTeamId")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsBye")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Round")
                         .HasColumnType("INTEGER");
 
@@ -287,7 +293,8 @@ namespace TurniejePro.Data.Migrations
 
                     b.HasIndex("HomeTeamId");
 
-                    b.HasIndex("TournamentId");
+                    b.HasIndex("TournamentId", "Round", "Position")
+                        .IsUnique();
 
                     b.ToTable("Matches");
                 });

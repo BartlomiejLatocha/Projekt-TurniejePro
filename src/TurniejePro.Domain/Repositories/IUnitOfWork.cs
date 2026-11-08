@@ -7,7 +7,7 @@ public interface IUnitOfWork
 {
     ITournamentRepository Tournaments { get; }
     ITeamRepository Teams { get; }
-    IRepository<Match> Matches { get; }
+    IMatchRepository Matches { get; }
     IRepository<CollectibleToken> Tokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

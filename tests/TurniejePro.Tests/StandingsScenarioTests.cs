@@ -1,6 +1,7 @@
 using TurniejePro.Domain;
 using TurniejePro.Domain.Scheduling;
 using TurniejePro.Domain.Standings;
+using Xunit;
 
 namespace TurniejePro.Tests;
 
@@ -225,7 +226,7 @@ public class StandingsScenarioTests
 
     private static Match Finished(Guid home, Guid away, int homeScore, int awayScore)
     {
-        var match = new Match(TournamentId, 1, home, away);
+        var match = new Match(TournamentId, 1, 1, home, away);
         match.SetResult(homeScore, awayScore);
 
         return match;

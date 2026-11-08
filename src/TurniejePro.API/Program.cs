@@ -3,12 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using TurniejePro.Api.Auth;
 using TurniejePro.Data;
 using TurniejePro.Data.Identity;
+using TurniejePro.Domain.Scheduling;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDataServices(builder.Configuration);
 builder.Services.AddControllers();
+builder.Services.AddScoped<ScheduleService>();
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 

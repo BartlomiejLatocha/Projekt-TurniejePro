@@ -16,11 +16,12 @@ public class MatchTests
         var scheduledAt = DateTimeOffset.UtcNow.AddDays(1);
 
         // Act
-        var match = new Match(tournamentId, 1, homeTeamId, awayTeamId, scheduledAt);
+        var match = new Match(tournamentId, 1, 1, homeTeamId, awayTeamId, scheduledAt);
 
         // Assert
         Assert.Equal(tournamentId, match.TournamentId);
         Assert.Equal(1, match.Round);
+        Assert.Equal(1, match.Position);
         Assert.Equal(homeTeamId, match.HomeTeamId);
         Assert.Equal(awayTeamId, match.AwayTeamId);
         Assert.Equal(scheduledAt, match.ScheduledAt);
@@ -32,14 +33,14 @@ public class MatchTests
     [Fact]
     public void Constructor_RoundLessThanOne_ShouldThrowArgumentOutOfRangeException()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new Match(Guid.NewGuid(), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Match(Guid.NewGuid(), 0, 1));
     }
 
     [Fact]
     public void StartMatch_WhenScheduled_ShouldChangeStatusToInProgress()
     {
         // Arrange
-        var match = new Match(Guid.NewGuid(), 1);
+        var match = new Match(Guid.NewGuid(), 1, 1);
 
         // Act
         match.StartMatch();
@@ -52,7 +53,7 @@ public class MatchTests
     public void StartMatch_WhenNotScheduled_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var match = new Match(Guid.NewGuid(), 1);
+        var match = new Match(Guid.NewGuid(), 1, 1);
         match.StartMatch();
 
         // Act & Assert
@@ -63,7 +64,7 @@ public class MatchTests
     public void SetResult_ValidScores_ShouldSetScoresAndStatusFinished()
     {
         // Arrange
-        var match = new Match(Guid.NewGuid(), 1);
+        var match = new Match(Guid.NewGuid(), 1, 1);
 
         // Act
         match.SetResult(3, 1);
@@ -79,7 +80,7 @@ public class MatchTests
     [InlineData(0, -2)]
     public void SetResult_NegativeScore_ShouldThrowArgumentException(int homeScore, int awayScore)
     {
-        var match = new Match(Guid.NewGuid(), 1);
+        var match = new Match(Guid.NewGuid(), 1, 1);
         Assert.Throws<ArgumentException>(() => match.SetResult(homeScore, awayScore));
     }
 
@@ -87,7 +88,7 @@ public class MatchTests
     public void Cancel_ShouldChangeStatusToCancelled()
     {
         // Arrange
-        var match = new Match(Guid.NewGuid(), 1);
+        var match = new Match(Guid.NewGuid(), 1, 1);
 
         // Act
         match.Cancel();
