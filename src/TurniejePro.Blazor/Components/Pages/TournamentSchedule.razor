@@ -1,0 +1,117 @@
+@page "/tournaments/{TournamentId:guid}/schedule"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Matches
+@using TurniejePro.Contracts.Tournaments
+@inject TournamentApiClient TournamentApi
+
+<PageTitle>Terminarz</PageTitle>
+
+<h1>Terminarz</h1>
+
+@if (isLoading)
+{
+    <p><em>Ładowanie terminarza...</em></p>
+}
+else
+{
+    @if (tournament is not null)
+    {
+        <h2 class="h4">@tournament.Name</h2>
+        <p class="text-muted">@tournament.Discipline</p>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-warning" role="status">@errorMessage</div>
+    }
+
+    @if (schedule is not null)
+    {
+        @foreach (var round in schedule.Rounds)
+        {
+            <h3 class="h5 mt-4">@RoundTitle(schedule.Format) @round.Round</h3>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Nr</th>
+                            <th>Gospodarz</th>
+                            <th class="text-center">Wynik</th>
+                            <th>Gość</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var match in round.Matches)
+                        {
+                            <tr>
+                                <td>@match.Position</td>
+                                <td>@HomeName(match)</td>
+                                <td class="text-center">@ScoreText(match)</td>
+                                <td>@AwayName(match)</td>
+                                <td>@StatusName(match.Status)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid TournamentId { get; set; }
+
+    private TournamentDetailsResponse? tournament;
+    private ScheduleResponse? schedule;
+    private string? errorMessage;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+
+        var result = await TournamentApi.GetScheduleAsync(TournamentId);
+        schedule = result.Schedule;
+        errorMessage = result.ErrorMessage;
+
+        isLoading = false;
+    }
+
+    private static string RoundTitle(TournamentFormat format) =>
+        format == TournamentFormat.League ? "Kolejka" : "Runda";
+
+    private static string HomeName(MatchResponse match) => match.HomeTeam?.Name ?? "Do ustalenia";
+
+    private static string AwayName(MatchResponse match)
+    {
+        if (match.IsBye)
+        {
+            return "Wolny los";
+        }
+
+        return match.AwayTeam?.Name ?? "Do ustalenia";
+    }
+
+    private static string ScoreText(MatchResponse match)
+    {
+        if (match.IsBye || match.HomeScore is null || match.AwayScore is null)
+        {
+            return "—";
+        }
+
+        return $"{match.HomeScore} : {match.AwayScore}";
+    }
+
+    private static string StatusName(MatchStatus status) => status switch
+    {
+        MatchStatus.Scheduled => "Zaplanowany",
+        MatchStatus.InProgress => "W toku",
+        MatchStatus.Finished => "Zakończony",
+        MatchStatus.Cancelled => "Anulowany",
+        _ => status.ToString()
+    };
+}
