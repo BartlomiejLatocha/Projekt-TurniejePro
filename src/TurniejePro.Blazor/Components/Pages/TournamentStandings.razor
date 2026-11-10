@@ -1,0 +1,97 @@
+@page "/tournaments/{TournamentId:guid}/standings"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Standings
+@using TurniejePro.Contracts.Tournaments
+@inject TournamentApiClient TournamentApi
+
+<PageTitle>Tabela</PageTitle>
+
+<h1>Tabela ligowa</h1>
+
+@if (isLoading)
+{
+    <p><em>Ładowanie tabeli...</em></p>
+}
+else
+{
+    @if (tournament is not null)
+    {
+        <h2 class="h4">@tournament.Name</h2>
+    }
+
+    <p class="text-muted">Punkty: wygrana 3, remis 1, porażka 0. Przy równej liczbie punktów decyduje bilans bramek, potem bramki zdobyte i mecze bezpośrednie.</p>
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-warning" role="status">@errorMessage</div>
+    }
+
+    @if (standings is not null)
+    {
+        @if (standings.Rows.Count == 0)
+        {
+            <p class="text-muted">Brak zaakceptowanych drużyn w tabeli.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Miejsce</th>
+                            <th>Drużyna</th>
+                            <th class="text-center">M</th>
+                            <th class="text-center">W</th>
+                            <th class="text-center">R</th>
+                            <th class="text-center">P</th>
+                            <th class="text-center">Bramki</th>
+                            <th class="text-center">Bilans</th>
+                            <th class="text-center">Pkt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in standings.Rows)
+                        {
+                            <tr>
+                                <td>@row.Place</td>
+                                <td>@row.TeamName</td>
+                                <td class="text-center">@row.Played</td>
+                                <td class="text-center">@row.Won</td>
+                                <td class="text-center">@row.Drawn</td>
+                                <td class="text-center">@row.Lost</td>
+                                <td class="text-center">@row.GoalsFor:@row.GoalsAgainst</td>
+                                <td class="text-center">@FormatDifference(row.GoalDifference)</td>
+                                <td class="text-center"><strong>@row.Points</strong></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid TournamentId { get; set; }
+
+    private TournamentDetailsResponse? tournament;
+    private StandingsResponse? standings;
+    private string? errorMessage;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+
+        var result = await TournamentApi.GetStandingsAsync(TournamentId);
+        standings = result.Standings;
+        errorMessage = result.ErrorMessage;
+
+        isLoading = false;
+    }
+
+    private static string FormatDifference(int difference) =>
+        difference > 0 ? $"+{difference}" : difference.ToString();
+}

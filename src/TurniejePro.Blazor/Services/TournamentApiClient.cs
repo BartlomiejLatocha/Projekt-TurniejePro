@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using TurniejePro.Contracts.Common;
 using TurniejePro.Contracts.Matches;
+using TurniejePro.Contracts.Standings;
 using TurniejePro.Contracts.Tournaments;
 
 namespace TurniejePro.Blazor.Services;
@@ -67,6 +68,30 @@ public sealed class TournamentApiClient(HttpClient http)
         catch (HttpRequestException)
         {
             return ScheduleLoadResult.Failure("Nie udało się połączyć z serwerem API.");
+        }
+    }
+
+    /// <summary>
+    /// Zwraca tabelę ligową turnieju (publiczny endpoint). Przy błędzie zwraca komunikat z API albo informację o połączeniu.
+    /// </summary>
+    public async Task<StandingsLoadResult> GetStandingsAsync(Guid tournamentId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await http.GetAsync($"api/v1/tournaments/{tournamentId}/standings", cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return StandingsLoadResult.Failure(await ApiError.ReadMessageAsync(response, cancellationToken));
+            }
+
+            var standings = await response.Content.ReadFromJsonAsync<StandingsResponse>(cancellationToken);
+            return standings is null
+                ? StandingsLoadResult.Failure("Serwer zwrócił pustą odpowiedź.")
+                : StandingsLoadResult.Success(standings);
+        }
+        catch (HttpRequestException)
+        {
+            return StandingsLoadResult.Failure("Nie udało się połączyć z serwerem API.");
         }
     }
 
@@ -148,4 +173,14 @@ public sealed record ScheduleLoadResult(ScheduleResponse? Schedule, string? Erro
     public static ScheduleLoadResult Success(ScheduleResponse schedule) => new(schedule, null);
 
     public static ScheduleLoadResult Failure(string message) => new(null, message);
+}
+
+/// <summary>
+/// Wynik pobrania tabeli ligowej: tabela albo komunikat dla użytkownika.
+/// </summary>
+public sealed record StandingsLoadResult(StandingsResponse? Standings, string? ErrorMessage)
+{
+    public static StandingsLoadResult Success(StandingsResponse standings) => new(standings, null);
+
+    public static StandingsLoadResult Failure(string message) => new(null, message);
 }
