@@ -55,11 +55,13 @@ else
                         <td>@tournament.StartsAt.ToLocalTime().ToString("g")</td>
                         <td>@tournament.MaxTeams</td>
                         <td>
+                            <div class="d-flex gap-3 flex-wrap">
                             <a href="tournaments/@tournament.Id/schedule">Terminarz</a>
                             <a href="tournaments/@tournament.Id/standings">Tabela</a>
                             <RoleView Roles="Organizer">
                                 <a href="tournaments/@tournament.Id/teams">Zgłoszenia</a>
                             </RoleView>
+                            </div>
                         </td>
                     </tr>
                 }

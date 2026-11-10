@@ -9,9 +9,10 @@
 
 <PageTitle>Rejestracja</PageTitle>
 
+<div class="tp-auth">
 <h1>Rejestracja</h1>
 
-<EditForm Model="model" OnValidSubmit="HandleValidSubmitAsync" class="col-md-6 col-lg-4">
+<EditForm Model="model" OnValidSubmit="HandleValidSubmitAsync" class="tp-auth-card">
     <DataAnnotationsValidator />
     <ValidationSummary class="text-danger" role="alert" />
 
@@ -40,6 +41,7 @@
 
     <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Zarejestruj się</button>
 </EditForm>
+</div>
 
 @code {
     private RegisterModel model = new();
