@@ -28,6 +28,11 @@ else
 
     <p><a href="tournaments/@TournamentId/standings">Tabela ligowa</a></p>
 
+    @if (schedule?.Format == TournamentFormat.Cup)
+    {
+        <p><a href="tournaments/@TournamentId/bracket">Drabinka pucharowa</a></p>
+    }
+
     <RoleView Roles="Organizer">
         <p><a href="tournaments/@TournamentId/results">Wpisz wyniki (panel organizatora)</a></p>
     </RoleView>

@@ -52,25 +52,28 @@
     }
 
     .nav-item ::deep .nav-link {
-        color: #d7d7d7;
+        color: var(--tp-muted);
         background: none;
         border: none;
-        border-radius: 4px;
-        height: 3rem;
+        border-radius: 10px;
+        height: 2.75rem;
         display: flex;
         align-items: center;
-        line-height: 3rem;
+        line-height: 1.2;
         width: 100%;
+        transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
     }
 
 .nav-item ::deep a.active {
-    background-color: rgba(255,255,255,0.37);
-    color: white;
+    background: linear-gradient(135deg, var(--tp-accent), var(--tp-accent-2));
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(109, 140, 255, 0.35);
 }
 
 .nav-item ::deep .nav-link:hover {
-    background-color: rgba(255,255,255,0.1);
-    color: white;
+    background-color: rgba(255, 255, 255, 0.06);
+    color: var(--tp-text);
+    transform: translateX(3px);
 }
 
 .nav-scrollable {

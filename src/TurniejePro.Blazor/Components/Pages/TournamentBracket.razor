@@ -1,0 +1,127 @@
+@page "/tournaments/{TournamentId:guid}/bracket"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Matches
+@using TurniejePro.Contracts.Tournaments
+@inject TournamentApiClient TournamentApi
+
+<PageTitle>Drabinka</PageTitle>
+
+<h1>Drabinka pucharowa</h1>
+
+@if (isLoading)
+{
+    <p><em>Ładowanie drabinki...</em></p>
+}
+else
+{
+    @if (tournament is not null)
+    {
+        <h2 class="h4">@tournament.Name</h2>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-warning" role="status">@errorMessage</div>
+    }
+
+    @if (schedule is not null)
+    {
+        @if (schedule.Format != TournamentFormat.Cup)
+        {
+            <div class="alert alert-info" role="status">
+                Drabinka dotyczy turniejów pucharowych. Ten turniej rozgrywany jest systemem ligowym, zobacz <a href="tournaments/@TournamentId/standings">tabelę ligową</a>.
+            </div>
+        }
+        else
+        {
+            <div class="d-flex gap-4 overflow-auto pb-3">
+                @for (var i = 0; i < schedule.Rounds.Count; i++)
+                {
+                    var round = schedule.Rounds[i];
+                    var remaining = schedule.Rounds.Count - i;
+
+                    <div style="min-width: 15rem;">
+                        <h3 class="h6 text-center">@RoundTitle(remaining)</h3>
+
+                        @foreach (var match in round.Matches)
+                        {
+                            var winner = WinnerSide(match);
+
+                            <div class="card mb-3">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between @(winner == 1 ? "fw-bold" : "")">
+                                        <span>@HomeName(match)</span>
+                                        <span>@(match.HomeScore?.ToString() ?? "")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between @(winner == 2 ? "fw-bold" : "")">
+                                        <span>@AwayName(match)</span>
+                                        <span>@(match.AwayScore?.ToString() ?? "")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid TournamentId { get; set; }
+
+    private TournamentDetailsResponse? tournament;
+    private ScheduleResponse? schedule;
+    private string? errorMessage;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+
+        var result = await TournamentApi.GetScheduleAsync(TournamentId);
+        schedule = result.Schedule;
+        errorMessage = result.ErrorMessage;
+
+        isLoading = false;
+    }
+
+    // remaining = liczba rund od tej włącznie do finału: 1 to finał, 2 to półfinał, 3 to 1/4 finału itd.
+    private static string RoundTitle(int remaining) => remaining switch
+    {
+        1 => "Finał",
+        2 => "Półfinał",
+        _ => $"1/{1 << (remaining - 1)} finału"
+    };
+
+    private static string HomeName(MatchResponse match) => match.HomeTeam?.Name ?? "Do ustalenia";
+
+    private static string AwayName(MatchResponse match)
+    {
+        if (match.IsBye)
+        {
+            return "Wolny los";
+        }
+
+        return match.AwayTeam?.Name ?? "Do ustalenia";
+    }
+
+    // 1 = gospodarz awansował, 2 = gość awansował, 0 = jeszcze nieznany.
+    // Wolny los awansuje gospodarz, bo to on jest wpisany do meczu następnej rundy.
+    private static int WinnerSide(MatchResponse match)
+    {
+        if (match.IsBye)
+        {
+            return 1;
+        }
+
+        if (match.HomeScore is not { } home || match.AwayScore is not { } away)
+        {
+            return 0;
+        }
+
+        return home > away ? 1 : away > home ? 2 : 0;
+    }
+}
