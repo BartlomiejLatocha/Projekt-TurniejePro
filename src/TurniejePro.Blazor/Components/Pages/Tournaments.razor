@@ -55,6 +55,7 @@ else
                         <td>@tournament.StartsAt.ToLocalTime().ToString("g")</td>
                         <td>@tournament.MaxTeams</td>
                         <td>
+                            <a href="tournaments/@tournament.Id/schedule">Terminarz</a>
                             <RoleView Roles="Organizer">
                                 <a href="tournaments/@tournament.Id/teams">Zgłoszenia</a>
                             </RoleView>
