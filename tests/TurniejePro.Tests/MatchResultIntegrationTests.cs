@@ -47,6 +47,29 @@ public class MatchResultIntegrationTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task PUT_SetResult_IsPersistedAndVisibleInSchedule()
+    {
+        // Arrange
+        var token = _testTokens.ForRoles("Admin", "Organizer");
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var (tournamentId, matchId) = await SeedLeagueTournamentWithMatchAsync();
+
+        // Act
+        var putResponse = await _client.PutAsJsonAsync(
+            $"/api/v1/tournaments/{tournamentId}/matches/{matchId}/result",
+            new UpdateMatchResultRequest(4, 2));
+        var schedule = await _client.GetFromJsonAsync<ScheduleResponse>($"/api/v1/tournaments/{tournamentId}/schedule");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, putResponse.StatusCode);
+        Assert.NotNull(schedule);
+        var match = schedule!.Rounds.SelectMany(r => r.Matches).Single(m => m.Id == matchId);
+        Assert.Equal(4, match.HomeScore);
+        Assert.Equal(2, match.AwayScore);
+    }
+
+    [Fact]
     public async Task PUT_SetResult_CupDraw_Returns400BadRequest()
     {
         // Arrange

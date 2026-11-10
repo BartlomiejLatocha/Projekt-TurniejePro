@@ -1,0 +1,209 @@
+@page "/tournaments/{TournamentId:guid}/results"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Auth
+@using TurniejePro.Contracts.Matches
+@using TurniejePro.Contracts.Tournaments
+@implements IDisposable
+@inject AuthSession Session
+@inject TournamentApiClient TournamentApi
+@inject MatchApiClient MatchApi
+
+<PageTitle>Wyniki meczów</PageTitle>
+
+<h1>Wyniki meczów</h1>
+
+@if (!canEnterResults)
+{
+    <div class="alert alert-warning" role="alert">
+        Wpisywanie wyników jest dostępne tylko dla organizatorów. Zaloguj się na konto z odpowiednią rolą.
+    </div>
+}
+else if (isLoading)
+{
+    <p><em>Ładowanie terminarza...</em></p>
+}
+else
+{
+    @if (tournament is not null)
+    {
+        <h2 class="h4">@tournament.Name</h2>
+    }
+
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    @if (schedule is null)
+    {
+        <div class="alert alert-warning" role="status">Brak terminarza do wpisywania wyników.</div>
+    }
+    else
+    {
+        @foreach (var round in schedule.Rounds)
+        {
+            <h3 class="h5 mt-4">@RoundTitle(schedule.Format) @round.Round</h3>
+
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Nr</th>
+                            <th>Gospodarz</th>
+                            <th>Wynik</th>
+                            <th>Gość</th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var match in round.Matches)
+                        {
+                            var entry = entries[match.Id];
+                            var canEdit = CanEnterResult(match);
+
+                            <tr>
+                                <td>@match.Position</td>
+                                <td>@(match.HomeTeam?.Name ?? "Do ustalenia")</td>
+                                <td class="d-flex gap-1 align-items-center">
+                                    <input type="number" min="0" max="999" class="form-control form-control-sm" style="width: 5rem"
+                                           aria-label="Wynik gospodarza" disabled="@(!canEdit)" @bind="entry.HomeScore" />
+                                    <span>:</span>
+                                    <input type="number" min="0" max="999" class="form-control form-control-sm" style="width: 5rem"
+                                           aria-label="Wynik gościa" disabled="@(!canEdit)" @bind="entry.AwayScore" />
+                                </td>
+                                <td>@(match.IsBye ? "Wolny los" : match.AwayTeam?.Name ?? "Do ustalenia")</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" disabled="@(!canEdit || busyMatchId is not null)"
+                                            @onclick="() => SaveAsync(match)">Zapisz</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid TournamentId { get; set; }
+
+    private TournamentDetailsResponse? tournament;
+    private ScheduleResponse? schedule;
+    private readonly Dictionary<Guid, ScoreEntry> entries = [];
+    private string? errorMessage;
+    private string? successMessage;
+    private Guid? busyMatchId;
+    private bool isLoading = true;
+    private bool canEnterResults;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+        UpdateAccess();
+
+        if (canEnterResults)
+        {
+            await LoadAsync();
+        }
+
+        isLoading = false;
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged()
+    {
+        UpdateAccess();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateAccess() => canEnterResults = Session.IsInRole(RoleNames.Organizer);
+
+    private async Task LoadAsync()
+    {
+        tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+
+        var result = await TournamentApi.GetScheduleAsync(TournamentId);
+        schedule = result.Schedule;
+        if (result.ErrorMessage is not null)
+        {
+            errorMessage = result.ErrorMessage;
+        }
+
+        entries.Clear();
+        if (schedule is not null)
+        {
+            foreach (var match in schedule.Rounds.SelectMany(r => r.Matches))
+            {
+                entries[match.Id] = new ScoreEntry(match.HomeScore, match.AwayScore);
+            }
+        }
+    }
+
+    // Wynik można wpisać tylko, gdy mecz ma obu rywali, nie jest wolnym losem i nie jest anulowany.
+    private static bool CanEnterResult(MatchResponse match) =>
+        match.HomeTeam is not null
+        && match.AwayTeam is not null
+        && !match.IsBye
+        && match.Status != MatchStatus.Cancelled;
+
+    private async Task SaveAsync(MatchResponse match)
+    {
+        var entry = entries[match.Id];
+        if (entry.HomeScore is not { } home || entry.AwayScore is not { } away
+            || home is < 0 or > 999 || away is < 0 or > 999)
+        {
+            errorMessage = "Wynik musi być liczbą całkowitą z zakresu 0–999.";
+            successMessage = null;
+            return;
+        }
+
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            errorMessage = "Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie.";
+            return;
+        }
+
+        busyMatchId = match.Id;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var result = await MatchApi.SetResultAsync(TournamentId, match.Id, home, away, accessToken);
+            if (result.Match is { } updated)
+            {
+                successMessage = $"Zapisano wynik: {updated.HomeTeam?.Name} {updated.HomeScore} : {updated.AwayScore} {updated.AwayTeam?.Name}.";
+                // Zapis w pucharze może przenieść zwycięzcę do kolejnej rundy, więc odświeżamy cały terminarz.
+                await LoadAsync();
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            busyMatchId = null;
+        }
+    }
+
+    private static string RoundTitle(TournamentFormat format) =>
+        format == TournamentFormat.League ? "Kolejka" : "Runda";
+
+    private sealed class ScoreEntry(int? homeScore, int? awayScore)
+    {
+        public int? HomeScore { get; set; } = homeScore;
+
+        public int? AwayScore { get; set; } = awayScore;
+    }
+}

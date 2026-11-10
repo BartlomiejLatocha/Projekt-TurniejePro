@@ -10,10 +10,11 @@ public class MatchRepository : Repository<Match>, IMatchRepository
     {
     }
 
+    // Bez AsNoTracking: MatchResultService zmienia pobrane mecze i zapisuje je przez SaveChangesAsync,
+    // a EF Core zapisuje tylko obiekty śledzone przez kontekst.
     public async Task<IReadOnlyList<Match>> GetByTournamentIdAsync(Guid tournamentId, CancellationToken cancellationToken = default)
     {
         return await DbSet
-            .AsNoTracking()
             .Include(m => m.HomeTeam)
             .Include(m => m.AwayTeam)
             .Where(m => m.TournamentId == tournamentId)
