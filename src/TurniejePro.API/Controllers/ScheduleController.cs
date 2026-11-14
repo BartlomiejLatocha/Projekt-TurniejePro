@@ -15,11 +15,13 @@ public class ScheduleController : ControllerBase
 {
     private readonly ScheduleService _scheduleService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuthorizationService _authorizationService;
 
-    public ScheduleController(ScheduleService scheduleService, IUnitOfWork unitOfWork)
+    public ScheduleController(ScheduleService scheduleService, IUnitOfWork unitOfWork, IAuthorizationService authorizationService)
     {
         _scheduleService = scheduleService;
         _unitOfWork = unitOfWork;
+        _authorizationService = authorizationService;
     }
 
     /// <summary>
@@ -46,6 +48,12 @@ public class ScheduleController : ControllerBase
                     detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
                     statusCode: StatusCodes.Status404NotFound,
                     title: "Tournament Not Found");
+            }
+
+            var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+            if (!authorization.Succeeded)
+            {
+                return Forbid();
             }
 
             var matches = await _scheduleService.GenerateScheduleAsync(tournamentId, cancellationToken);
@@ -131,6 +139,12 @@ public class ScheduleController : ControllerBase
                 detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Tournament Not Found");
+        }
+
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
+        {
+            return Forbid();
         }
 
         var hasSchedule = await _unitOfWork.Matches.HasScheduleAsync(tournamentId, cancellationToken);

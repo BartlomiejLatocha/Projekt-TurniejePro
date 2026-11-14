@@ -8,6 +8,7 @@ namespace TurniejePro.Api.Auth;
 /// </summary>
 public static class Roles
 {
+    public const string Admin = UserRoles.Admin;
     public const string Organizer = UserRoles.Organizer;
     public const string Captain = UserRoles.Participant;
     public const string Fan = UserRoles.Spectator;

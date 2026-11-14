@@ -22,9 +22,13 @@ public class TeamStatusIntegrationTests : IClassFixture<CustomWebApplicationFact
         _tokenService = scope.ServiceProvider.GetRequiredService<ITokenService>();
     }
 
+    // Ten sam organizator tworzy turniej i decyduje o zgłoszeniach: zgłoszenia może rozpatrywać tylko organizator turnieju
+    private readonly Guid _organizerId = Guid.NewGuid();
+
     private void AuthenticateAs(string role)
     {
-        var token = _tokenService.CreateToken(Guid.NewGuid(), "user@example.com", new[] { role }).AccessToken;
+        var userId = role == Roles.Organizer ? _organizerId : Guid.NewGuid();
+        var token = _tokenService.CreateToken(userId, "user@example.com", new[] { role }).AccessToken;
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
