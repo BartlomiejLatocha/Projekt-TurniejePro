@@ -88,7 +88,7 @@ dotnet run --project src/TurniejePro.Blazor
 Sekretów (connection string, klucze) nie przechowujemy w repozytorium. Lokalnie używamy User Secrets:
 
 ```bash
-dotnet user-secrets set "ConnectionStrings:Default" "<twój connection string>" --project src/TurniejePro.Api
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<twój connection string>" --project src/TurniejePro.Api
 ```
 
 ## Konfiguracja lokalna (User Secrets)
@@ -98,6 +98,20 @@ Przed pierwszym uruchomieniem wykonaj w terminalu:
 ```bash
 dotnet user-secrets set "Jwt:Key" "<twój-losowy-klucz-min-32-znaki>" --project src/TurniejePro.Api
 ```
+
+### Baza danych i konto testowe
+
+Przy każdym starcie API (w każdym środowisku) stosuje migracje bazy i tworzy role. Nie trzeba ręcznie uruchamiać `dotnet ef database update`.
+
+W środowisku **Development** API może dodatkowo utworzyć konto testowego organizatora. Adres e-mail jest w `appsettings.Development.json` (`organizer@example.com`), a hasło ustawiasz w User Secrets:
+
+```bash
+dotnet user-secrets set "DevSeed:OrganizerPassword" "<hasło-min-6-znaków-z-cyfrą>" --project src/TurniejePro.Api
+```
+
+Bez tego hasła konto nie powstaje, a w logach pojawia się ostrzeżenie. Poza środowiskiem Development konto testowe nigdy nie jest tworzone.
+
+Jeśli masz bazę z wcześniejszych wersji, konto `organizer@example.com` już w niej istnieje ze starym hasłem i nie zostanie nadpisane. Możesz dalej logować się starym hasłem albo usunąć plik `turniejepro.db` z katalogu projektu API (stracisz lokalne dane), a przy następnym starcie baza i konto powstaną od nowa.
 
 ## Zasady pracy zespołu
 
