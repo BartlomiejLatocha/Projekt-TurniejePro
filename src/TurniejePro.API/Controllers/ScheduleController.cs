@@ -39,51 +39,28 @@ public class ScheduleController : ControllerBase
         Guid tournamentId,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken);
-            if (tournament is null)
-            {
-                return Problem(
-                    detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
-                    statusCode: StatusCodes.Status404NotFound,
-                    title: "Tournament Not Found");
-            }
-
-            var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
-            if (!authorization.Succeeded)
-            {
-                return Forbid();
-            }
-
-            var matches = await _scheduleService.GenerateScheduleAsync(tournamentId, cancellationToken);
-
-            var contractFormat = (TournamentFormat)tournament.Format;
-            var response = matches.ToScheduleResponse(tournamentId, contractFormat);
-
-            return CreatedAtAction(nameof(GetSchedule), new { tournamentId }, response);
-        }
-        catch (ScheduleAlreadyExistsException ex)
+        var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken);
+        if (tournament is null)
         {
             return Problem(
-                detail: ex.Message,
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Schedule Conflict");
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return Problem(
-                detail: ex.Message,
+                detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
                 statusCode: StatusCodes.Status404NotFound,
-                title: "Tournament Not Found");
+                title: "Nie znaleziono turnieju");
         }
-        catch (InvalidOperationException ex)
+
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
         {
-            return Problem(
-                detail: ex.Message,
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Invalid Schedule Request");
+            return Forbid();
         }
+
+        // Terminarz już istnieje (409) i za mało drużyn (400) zgłasza ScheduleService; obsługuje je globalny handler
+        var matches = await _scheduleService.GenerateScheduleAsync(tournamentId, cancellationToken);
+
+        var contractFormat = (TournamentFormat)tournament.Format;
+        var response = matches.ToScheduleResponse(tournamentId, contractFormat);
+
+        return CreatedAtAction(nameof(GetSchedule), new { tournamentId }, response);
     }
 
     /// <summary>
@@ -103,7 +80,7 @@ public class ScheduleController : ControllerBase
             return Problem(
                 detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
                 statusCode: StatusCodes.Status404NotFound,
-                title: "Tournament Not Found");
+                title: "Nie znaleziono turnieju");
         }
 
         var matches = await _unitOfWork.Matches.GetByTournamentIdAsync(tournamentId, cancellationToken);
@@ -112,7 +89,7 @@ public class ScheduleController : ControllerBase
             return Problem(
                 detail: $"Turniej o ID '{tournamentId}' nie posiada wygenerowanego terminarza.",
                 statusCode: StatusCodes.Status404NotFound,
-                title: "Schedule Not Found");
+                title: "Nie znaleziono terminarza");
         }
 
         var contractFormat = (TournamentFormat)tournament.Format;
@@ -138,7 +115,7 @@ public class ScheduleController : ControllerBase
             return Problem(
                 detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
                 statusCode: StatusCodes.Status404NotFound,
-                title: "Tournament Not Found");
+                title: "Nie znaleziono turnieju");
         }
 
         var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
@@ -153,7 +130,7 @@ public class ScheduleController : ControllerBase
             return Problem(
                 detail: $"Turniej o ID '{tournamentId}' nie posiada wygenerowanego terminarza do usunięcia.",
                 statusCode: StatusCodes.Status404NotFound,
-                title: "Schedule Not Found");
+                title: "Nie znaleziono terminarza");
         }
 
         await _unitOfWork.Matches.DeleteByTournamentIdAsync(tournamentId, cancellationToken);

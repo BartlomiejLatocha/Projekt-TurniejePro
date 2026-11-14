@@ -1,5 +1,6 @@
 using TurniejePro.Domain;
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 using Xunit;
 
 namespace TurniejePro.Tests;
@@ -105,12 +106,12 @@ public class TeamTests
     }
 
     [Fact]
-    public void AddPlayer_DuplicateJerseyNumber_ShouldThrowInvalidOperationException()
+    public void AddPlayer_DuplicateJerseyNumber_ShouldThrowBusinessRuleException()
     {
         var team = new Team("Orły", Guid.NewGuid());
         team.AddPlayer("Jan Kowalski", 10);
 
-        Assert.Throws<InvalidOperationException>(() => team.AddPlayer("Adam Nowak", 10));
+        Assert.Throws<BusinessRuleException>(() => team.AddPlayer("Adam Nowak", 10));
     }
 
     [Fact]

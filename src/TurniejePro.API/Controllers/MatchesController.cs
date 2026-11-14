@@ -28,13 +28,14 @@ public class MatchesController : ControllerBase
 
     /// <summary>
     /// Wprowadza lub aktualizuje wynik meczu w turnieju. Tylko organizator turnieju lub administrator.
+    /// Błędy domenowe (brak meczu, remis w pucharze, konflikt z następną rundą) obsługuje globalny handler wyjątków.
     /// </summary>
     [HttpPut("{matchId:guid}/result")]
     [Authorize] // tylko zalogowani; organizatora turnieju sprawdza polityka EnterResults po wczytaniu turnieju
     [ProducesResponseType(typeof(MatchResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<MatchResponse>> SetResult(
@@ -49,7 +50,7 @@ public class MatchesController : ControllerBase
             return Problem(
                 detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
                 statusCode: StatusCodes.Status404NotFound,
-                title: "Resource Not Found");
+                title: "Nie znaleziono turnieju");
         }
 
         var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.EnterResults);
@@ -58,37 +59,13 @@ public class MatchesController : ControllerBase
             return Forbid();
         }
 
-        try
-        {
-            var updatedMatch = await _matchResultService.SetResultAsync(
-                tournamentId,
-                matchId,
-                request.HomeScore,
-                request.AwayScore,
-                cancellationToken);
+        var updatedMatch = await _matchResultService.SetResultAsync(
+            tournamentId,
+            matchId,
+            request.HomeScore,
+            request.AwayScore,
+            cancellationToken);
 
-            return Ok(updatedMatch.ToResponse());
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return Problem(
-                detail: ex.Message,
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Resource Not Found");
-        }
-        catch (MatchResultConflictException ex)
-        {
-            return Problem(
-                detail: ex.Message,
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Match Result Conflict");
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or ArgumentOutOfRangeException)
-        {
-            return Problem(
-                detail: ex.Message,
-                statusCode: StatusCodes.Status400BadRequest,
-                title: "Invalid Score Request");
-        }
+        return Ok(updatedMatch.ToResponse());
     }
 }

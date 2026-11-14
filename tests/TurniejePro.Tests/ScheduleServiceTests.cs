@@ -1,5 +1,6 @@
 using TurniejePro.Domain;
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 using TurniejePro.Domain.Repositories;
 using TurniejePro.Domain.Scheduling;
 using Xunit;
@@ -105,7 +106,7 @@ public class ScheduleServiceTests
     }
 
     [Fact]
-    public async Task GenerateScheduleAsync_WhenLessThan2Teams_ThrowsInvalidOperationException()
+    public async Task GenerateScheduleAsync_WhenLessThan2Teams_ThrowsBusinessRuleException()
     {
         // Arrange
         var tournament = new Tournament("Test", "Opis", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(1), 16, null);
@@ -115,7 +116,7 @@ public class ScheduleServiceTests
         var sut = new ScheduleService(fakeUow);
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.GenerateScheduleAsync(tournamentId));
+        await Assert.ThrowsAsync<BusinessRuleException>(() => sut.GenerateScheduleAsync(tournamentId));
     }
 
     private static List<Team> CreateTeams(Guid tournamentId, int count)

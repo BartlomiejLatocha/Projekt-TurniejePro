@@ -1,4 +1,5 @@
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 
 namespace TurniejePro.Domain;
 
@@ -64,7 +65,7 @@ public class Tournament
     {
         if (IsStarted)
         {
-            throw new InvalidOperationException("Turniej został już rozpoczęty.");
+            throw new BusinessRuleException("Turniej został już rozpoczęty.");
         }
 
         IsStarted = true;
@@ -106,7 +107,7 @@ public class Tournament
     {
         if (IsStarted)
         {
-            throw new InvalidOperationException("Nie można modyfikować rozpoczętego turnieju.");
+            throw new BusinessRuleException("Nie można modyfikować rozpoczętego turnieju.");
         }
 
         if (string.IsNullOrWhiteSpace(name))
@@ -126,7 +127,7 @@ public class Tournament
 
         if (maxTeams < Teams.Count)
         {
-            throw new InvalidOperationException("Limit drużyn nie może być mniejszy niż liczba już zarejestrowanych drużyn.");
+            throw new BusinessRuleException("Limit drużyn nie może być mniejszy niż liczba już zarejestrowanych drużyn.");
         }
 
         Name = name;

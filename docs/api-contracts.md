@@ -76,16 +76,50 @@ Typ: `PagedResponse<T>` z `TurniejePro.Contracts.Common`. Parametry zapytania: `
 
 ### Format błędu
 
+Każda odpowiedź błędu (400, 401, 403, 404, 409, 500) ma typ `application/problem+json` i polski `title`. Tytuł jest krótki i ogólny, a komunikat dla użytkownika jest w `detail`. Blazor wyświetla `detail`, a gdy go nie ma, listę z `errors`.
+
+Błąd walidacji modelu (atrybuty DataAnnotations):
+
 ```json
 {
   "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-  "title": "One or more validation errors occurred.",
+  "title": "Błąd walidacji danych",
   "status": 400,
   "errors": {
-    "name": ["The Name field is required."]
+    "Name": ["The field Name must be a string with a minimum length of 3 and a maximum length of 100."]
   }
 }
 ```
+
+Błąd z logiki domenowej:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "Operacja niedozwolona",
+  "status": 400,
+  "detail": "Do wygenerowania terminarza wymagane są co najmniej 2 zaakceptowane drużyny."
+}
+```
+
+### Wyjątki domenowe i globalna obsługa błędów
+
+Logika domenowa zgłasza błędy wyjątkami z `TurniejePro.Domain.Exceptions`. Kontrolery ich **nie łapią**: zamienia je na odpowiedź `DomainExceptionHandler` (`TurniejePro.Api/Errors`), zarejestrowany w `Program.cs` przez `AddApiErrorHandling()` i `UseApiErrorHandling()`.
+
+| Wyjątek | Kiedy | Kod | `title` |
+|---|---|---|---|
+| `NotFoundException` | szukany obiekt nie istnieje (np. mecz w turnieju) | `404` | Nie znaleziono zasobu |
+| `ConflictException` (także `ScheduleAlreadyExistsException`, `MatchResultConflictException`) | operacja sprzeczna z bieżącym stanem danych | `409` | Konflikt z bieżącym stanem danych |
+| `BusinessRuleException` | żądanie łamie regułę biznesową (np. remis w pucharze, zmiana rozpoczętego turnieju) | `400` | Operacja niedozwolona |
+| `ArgumentException` (i pochodne) | encja odrzuca błędne dane (np. pusta nazwa, numer koszulki spoza 1–99) | `400` | Nieprawidłowe dane |
+| każdy inny | błąd w kodzie | `500` | Wystąpił nieoczekiwany błąd serwera |
+
+Zasady:
+
+- **Komunikat wyjątku domenowego trafia do użytkownika** (pole `detail`), więc piszemy go po polsku i bez danych technicznych. Dopiski .NET typu „(Parameter 'name')” handler usuwa.
+- **`InvalidOperationException` nie jest błędem użytkownika.** Rzuca go także sam .NET i EF Core przy błędach w kodzie, więc kończy się `500` bez szczegółów. Reguły biznesowe zgłaszamy przez `BusinessRuleException`.
+- **Kontroler sam zwraca błąd** tylko wtedy, gdy wynika z jego własnego sprawdzenia (np. turniej nie istnieje → `404`, cudzy turniej → `Forbid()`). Tytuły nadane w kontrolerze zostają; domyślne angielskie tytuły frameworka są podmieniane na polskie (`ProblemTitles`).
+- `401` i `403` z uwierzytelniania i `Forbid()` też dostają treść ProblemDetails (`UseStatusCodePages`).
 
 ### Zgłoszenia drużyn: kiedy API odmawia
 
@@ -192,3 +226,4 @@ Nazwy typów i ścieżki w wierszach „do wykonania" są propozycjami. Właści
 |---|---|---|
 | `TODO` | Wspólne typy DTO w projekcie `TurniejePro.Contracts`; konwencje z tego dokumentu | `TODO` |
 | 2026-10-27 | Atrybuty walidacji na parametrach rekordów `*Request`, bez prefiksu `property:` (z prefiksem MVC kończy żądanie błędem 500). Formularze Blazora mają własne modele walidacji | `TODO` |
+| 2026-11-14 | Wyjątki domenowe (`NotFoundException`, `ConflictException`, `BusinessRuleException`) i jeden globalny `IExceptionHandler` zamiast `try/catch` w kontrolerach; wszystkie błędy jako ProblemDetails z polskim tytułem | KAN-303 |

@@ -1,5 +1,6 @@
 using TurniejePro.Domain;
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 using Xunit;
 
 namespace TurniejePro.Tests;
@@ -50,14 +51,14 @@ public class MatchTests
     }
 
     [Fact]
-    public void StartMatch_WhenNotScheduled_ShouldThrowInvalidOperationException()
+    public void StartMatch_WhenNotScheduled_ShouldThrowBusinessRuleException()
     {
         // Arrange
         var match = new Match(Guid.NewGuid(), 1, 1);
         match.StartMatch();
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => match.StartMatch());
+        Assert.Throws<BusinessRuleException>(() => match.StartMatch());
     }
 
     [Fact]

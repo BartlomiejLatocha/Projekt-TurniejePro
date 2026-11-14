@@ -1,4 +1,5 @@
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 using TurniejePro.Domain.Repositories;
 
 namespace TurniejePro.Domain.Scheduling;
@@ -25,7 +26,7 @@ public class ScheduleService
         var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken);
         if (tournament is null)
         {
-            throw new KeyNotFoundException($"Nie odnaleziono turnieju o ID '{tournamentId}'.");
+            throw new NotFoundException($"Nie odnaleziono turnieju o ID '{tournamentId}'.");
         }
 
         // 3. Pobranie zaakceptowanych drużyn
@@ -36,7 +37,7 @@ public class ScheduleService
 
         if (acceptedTeams.Count < 2)
         {
-            throw new InvalidOperationException("Do wygenerowania terminarza wymagane są co najmniej 2 zaakceptowane drużyny.");
+            throw new BusinessRuleException("Do wygenerowania terminarza wymagane są co najmniej 2 zaakceptowane drużyny.");
         }
 
         var teamIds = acceptedTeams.Select(t => t.Id).ToList();

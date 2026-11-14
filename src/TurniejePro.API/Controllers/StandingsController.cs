@@ -32,7 +32,7 @@ public class StandingsController : ControllerBase
             return Problem(
                 detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
                 statusCode: StatusCodes.Status404NotFound,
-                title: "Tournament Not Found");
+                title: "Nie znaleziono turnieju");
         }
 
         var teams = await _unitOfWork.Teams.GetByStatusAsync(

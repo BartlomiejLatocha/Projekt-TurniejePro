@@ -1,9 +1,11 @@
+using TurniejePro.Domain.Exceptions;
+
 namespace TurniejePro.Domain.Scheduling;
 
 /// <summary>
 /// Wyjątek rzucany przy próbie ponownego wygenerowania terminarza dla turnieju, który posiada już wygenerowany terminarz.
 /// </summary>
-public class ScheduleAlreadyExistsException : Exception
+public class ScheduleAlreadyExistsException : ConflictException
 {
     public ScheduleAlreadyExistsException()
     {
