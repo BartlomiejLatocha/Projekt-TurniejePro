@@ -1,138 +1,247 @@
 # Autoryzacja i role
 
-> Status: **propozycja do uzgodnienia**. Pola oznaczone `?` w macierzy uprawnień wymagają decyzji zespołu. Po akceptacji zmień status na „obowiązuje" i uzupełnij historię decyzji.
+> Status: **obowiązuje** (decyzja z zadania KAN-278). Część zasad nie jest jeszcze zaimplementowana: stan wdrożenia opisuje sekcja [Stan wdrożenia](#stan-wdrożenia).
 
-Dokument opisuje, kto może wykonywać które operacje w API, jak to jest egzekwowane i jak zabezpieczać nowe endpointy. Korzystają z niego: backend (polityki i kontrolery), frontend (widoczność akcji w UI) oraz osoby piszące testy autoryzacji.
+Dokument opisuje, kto może wykonywać które operacje w API, jak to jest egzekwowane i jak zabezpieczać nowe endpointy. Korzystają z niego: backend (polityki, handlery i kontrolery), frontend (widoczność akcji w UI) oraz osoby piszące testy autoryzacji.
+
+## Najważniejsza zasada
+
+**Uprawnienia wynikają z tego, czyj jest zasób, a nie z globalnej roli.**
+
+- Każdy zalogowany użytkownik może założyć turniej i staje się jego **organizatorem** (`Tournament.OrganizerId`).
+- Każdy zalogowany użytkownik może zgłosić drużynę i staje się jej **kapitanem** (`Team.CaptainId`).
+- **Kibic** to nie rola, tylko każdy, kto ogląda turniej: także osoba niezalogowana.
+- Ta sama osoba może być organizatorem jednego turnieju, kapitanem drużyny w innym i kibicem w trzecim.
+
+Globalne role zostają tylko dwie: zwykły użytkownik i administrator.
 
 ## Mechanizm
 
-- **Uwierzytelnianie:** token JWT (Bearer) wydawany przez `POST /api/v1/auth/login`. Klient wysyła go w nagłówku `Authorization: Bearer <token>`.
-- **Autoryzacja:** polityki ASP.NET Core oparte na rolach. Kontrolery odwołują się do **polityk** (nazwanych od czynności), a nie bezpośrednio do ról.
+- **Uwierzytelnianie:** token JWT (Bearer) wydawany przez `POST /api/v1/auth/login` i `POST /api/v1/auth/register`. Klient wysyła go w nagłówku `Authorization: Bearer <token>`.
+- **Autoryzacja:** polityki ASP.NET Core nazwane od czynności. Kontrolery odwołują się do **polityk**, a nie bezpośrednio do ról.
+  - Polityki bez zasobu (np. „zalogowany”) działają przez atrybut `[Authorize(Policy = ...)]`.
+  - Polityki zależne od zasobu (np. „organizator tego turnieju”) sprawdza kontroler po wczytaniu zasobu, przez `IAuthorizationService` i handler wymagania (szczegóły w sekcji [Reguły oparte o zasób](#reguły-oparte-o-zasób)).
 - **Claimy w tokenie:**
 
 | Claim | Zawartość |
 |---|---|
-| `sub` | identyfikator użytkownika (`Guid`) |
+| `sub` | identyfikator użytkownika (`Guid`); porównujemy go z `OrganizerId` i `CaptainId` |
 | `email` | adres e-mail |
 | `name` | nazwa użytkownika |
-| `role` | jedna wartość na każdą rolę użytkownika |
+| `role` | jedna wartość na każdą globalną rolę użytkownika |
 | `jti` | unikalny identyfikator tokenu |
 
 - **Konfiguracja:** sekcja `Jwt` w `appsettings.json` (`Issuer`, `Audience`, `ExpiresMinutes`). Klucz `Jwt:Key` jest przechowywany w User Secrets i nigdy nie trafia do repozytorium.
 
-## Role
-
-Nazwy ról muszą być **identyczne** z tymi, które tworzy seed (zadanie KAN-64). Poniższa tabela jest szkicem, więc popraw ją według stanu w kodzie.
+## Role globalne
 
 | Rola | Opis | Jak użytkownik ją dostaje |
 |---|---|---|
-| `Spectator` (kibic) | podgląd turniejów, drużyn, wyników i tabel | domyślnie po rejestracji |
-| `Captain` (kapitan) | zgłasza i prowadzi własną drużynę | `TODO` (nadaje organizator / seed) |
-| `Organizer` (organizator) | zarządza turniejami, zgłoszeniami i wynikami | `TODO` (seed / nadaje administrator) |
+| `User` | zwykły użytkownik: zakłada turnieje, zgłasza drużyny, kibicuje | automatycznie po rejestracji |
+| `Admin` | administrator systemu: może wszystko, co organizator i kapitan, w każdym turnieju | tylko ręcznie (seed w środowisku deweloperskim albo wpis w bazie); API nie pozwala nadać tej roli |
+
+Dotychczasowe role `Organizer`, `Participant` i `Spectator` zostają usunięte (zadanie TA-14.2.2). Nazwy `Captain` i `Fan` z kodu API (`Roles.cs`) również znikają: kapitan i kibic nie są rolami.
+
+## Role przypisane do zasobu
+
+| Rola | Kto nią jest | Źródło |
+|---|---|---|
+| Organizator turnieju | użytkownik, który utworzył turniej | `Tournament.OrganizerId == sub` |
+| Kapitan drużyny | użytkownik, który zgłosił drużynę | `Team.CaptainId == sub` |
+| Kibic | każdy, w tym osoba niezalogowana | brak, to domyślny poziom dostępu |
+
+Turnieje i drużyny utworzone przed wprowadzeniem tych zasad mogą mieć `OrganizerId` lub `CaptainId` równe `null`. Takimi zasobami zarządza wyłącznie `Admin`.
 
 ## Macierz uprawnień
 
-Legenda: **tak** (dozwolone), **nie** (zabronione), **?** (do decyzji zespołu).
+Legenda: **tak** (dozwolone), **nie** (zabronione). „Zalogowany” oznacza dowolnego zalogowanego użytkownika, który nie jest organizatorem ani kapitanem danego zasobu.
 
-| Akcja | Polityka | Niezalogowany | Kibic | Kapitan | Organizator |
-|---|---|---|---|---|---|
-| Rejestracja i logowanie | brak (`AllowAnonymous`) | tak | tak | tak | tak |
-| Podgląd turniejów, tabel i wyników | `ViewTournaments` | tak | tak | tak | tak |
-| Zgłoszenie drużyny do turnieju | `RegisterTeam` | nie | nie | tak | tak |
-| Edycja własnej drużyny i zawodników | `RegisterTeam` + reguła zasobu | nie | nie | tak (tylko swojej) | tak |
-| Tworzenie i edycja turnieju | `ManageTournaments` | nie | nie | nie | tak |
-| Akceptacja i odrzucanie zgłoszeń | `ManageTournaments` | nie | nie | nie | tak |
-| Generowanie terminarza | `ManageTournaments` | nie | nie | nie | tak |
-| Wprowadzanie wyników meczów | `EnterResults` | nie | nie | tak | tak |
-| Eksport wyników (PDF/CSV) | `ViewTournaments` | nie | tak | tak | tak |
+| Akcja | Polityka | Niezalogowany | Zalogowany | Kapitan tej drużyny | Organizator tego turnieju | Admin |
+|---|---|---|---|---|---|---|
+| Rejestracja i logowanie | brak (`AllowAnonymous`) | tak | tak | tak | tak | tak |
+| Podgląd turniejów, drużyn, terminarza, tabeli i drabinki | brak (`AllowAnonymous`) | tak | tak | tak | tak | tak |
+| Eksport wyników (PDF/CSV) | brak (`AllowAnonymous`) | tak | tak | tak | tak | tak |
+| Statystyki i ranking drużyn | brak (`AllowAnonymous`) | tak | tak | tak | tak | tak |
+| Utworzenie turnieju | `CreateTournament` | nie | tak | tak | tak | tak |
+| Edycja i usunięcie turnieju | `ManageTournament` | nie | nie | nie | tak | tak |
+| Akceptacja i odrzucenie zgłoszeń | `ManageTournament` | nie | nie | nie | tak | tak |
+| Generowanie i usunięcie terminarza | `ManageTournament` | nie | nie | nie | tak | tak |
+| Wpisanie i poprawa wyniku meczu | `EnterResults` | nie | nie | nie | tak | tak |
+| Zgłoszenie drużyny do turnieju | `RegisterTeam` | nie | tak | tak | tak | tak |
+| Edycja drużyny i zawodników | `ManageTeam` | nie | nie | tak | tak | tak |
+| Opłacenie wpisowego (PayPal) | `PayEntryFee` | nie | nie | tak | nie | nie |
+| Kibicowanie meczowi tokenami | `Authenticated` | nie | tak | tak | tak | tak |
 
-Decyzje do podjęcia:
+Uwagi do macierzy:
+
+- **Wyniki wpisuje tylko organizator.** Kapitan nie może wpisać wyniku, nawet meczu własnej drużyny. Ewentualne „zgłoszenie wyniku przez kapitana do zatwierdzenia przez organizatora” to osobna funkcja na przyszłość.
+- **Organizator może zgłosić drużynę także do własnego turnieju**, np. gdy wpisuje drużyny w imieniu uczestników. Staje się wtedy jej kapitanem.
+- **Wpisowe płaci tylko kapitan.** Organizator nie płaci za cudzą drużynę, a admin nie ma powodu, żeby płacić.
+- Uprawnienie nie zastępuje **reguł biznesowych**. Przykład: organizator ma prawo zmienić format turnieju, ale domena odrzuci zmianę, gdy turniej już się rozpoczął. Takie odmowy zwracają `400` lub `409`, a nie `403`.
+- Szczegółowe zasady kibicowania tokenami (np. czy kapitan może kibicować własnej drużynie, limity) ustala zadanie TA-13.1.1.
 
 ## Polityki
 
-Nazwy polityk są stałymi w `TurniejePro.Api/Auth/Policies.cs`. Rejestracja polityk znajduje się w jednym miejscu (metoda rozszerzająca wywoływana z `Program.cs`).
+Nazwy polityk są stałymi w `TurniejePro.Api/Auth/Policies.cs`. Rejestracja polityk znajduje się w jednym miejscu (`JwtAuthenticationExtensions.AddJwtAuthentication`).
 
-| Polityka | Wymagana rola (propozycja) |
+| Polityka | Wymaganie | Sposób sprawdzenia |
+|---|---|---|
+| `Authenticated` | zalogowany użytkownik | atrybut (to także polityka domyślna, patrz niżej) |
+| `CreateTournament` | zalogowany użytkownik | atrybut |
+| `RegisterTeam` | zalogowany użytkownik | atrybut |
+| `ManageTournament` | organizator turnieju albo `Admin` | `IAuthorizationService` + zasób `Tournament` |
+| `EnterResults` | organizator turnieju meczu albo `Admin` | `IAuthorizationService` + zasób `Tournament` |
+| `ManageTeam` | kapitan drużyny, organizator jej turnieju albo `Admin` | `IAuthorizationService` + zasób `Team` |
+| `PayEntryFee` | kapitan drużyny | `IAuthorizationService` + zasób `Team` |
+
+Politykę nazywamy od **czynności**, nie od roli. `EnterResults` ma dziś to samo wymaganie co `ManageTournament`, ale jest osobną polityką: jeśli kiedyś kapitan będzie mógł zgłaszać wyniki, zmienia się jedno miejsce.
+
+Polityki `ManageTournaments`, `AcceptApplications` (dziś: organizator globalny) zastępuje `ManageTournament`. Dotychczasowe nazwy znikają razem z rolami globalnymi.
+
+## Polityka domyślna i wyjątki
+
+**Domyślnie wszystko wymaga zalogowania** (`FallbackPolicy` z `RequireAuthenticatedUser`). Publiczne endpointy otwieramy jawnie. Zapomniany atrybut nie otwiera wtedy luki w zabezpieczeniach.
+
+Endpointy z `[AllowAnonymous]` (lub `.AllowAnonymous()`):
+
+- `POST /api/v1/auth/register` i `POST /api/v1/auth/login`,
+- `GET /api/v1/health`,
+- `/openapi/v1.json` (`MapOpenApi().AllowAnonymous()`),
+- wszystkie endpointy podglądu (`GET`): turnieje, drużyny, terminarz, tabela, a w przyszłości eksport i statystyki.
+
+## Endpointy i polityki
+
+Stan docelowy dla istniejących endpointów. Nowy endpoint dopisujemy do tej tabeli.
+
+| Endpoint | Polityka |
 |---|---|
-| `ViewTournaments` | zalogowany użytkownik (dowolna rola) |
-| `RegisterTeam` | `Captain` lub `Organizer` |
-| `ManageTournaments` | `Organizer` |
-| `EnterResults` | `Organizer` (do decyzji: także `Captain`) |
-
-Politykę nazywamy od **czynności**, nie od roli. Dzięki temu zmiana uprawnień (np. dopuszczenie kapitana do wyników) to zmiana w jednym miejscu, a nie w każdym kontrolerze.
+| `POST /api/v1/auth/register`, `POST /api/v1/auth/login` | `AllowAnonymous` |
+| `GET /api/v1/auth/me` | `Authenticated` |
+| `GET /api/v1/health` | `AllowAnonymous` |
+| `GET /api/v1/tournaments`, `GET /api/v1/tournaments/{id}` | `AllowAnonymous` |
+| `POST /api/v1/tournaments` | `CreateTournament` |
+| `PUT /api/v1/tournaments/{id}`, `DELETE /api/v1/tournaments/{id}` | `ManageTournament` |
+| `POST /api/v1/teams` | `RegisterTeam` |
+| `PATCH /api/v1/teams/{id}/accept`, `PATCH /api/v1/teams/{id}/reject` | `ManageTournament` (turniej drużyny) |
+| `GET /api/v1/teams/{id}`, `GET /api/v1/teams/tournament/{tournamentId}` | `AllowAnonymous` |
+| `GET /api/v1/tournaments/{id}/schedule` | `AllowAnonymous` |
+| `POST /api/v1/tournaments/{id}/schedule`, `DELETE /api/v1/tournaments/{id}/schedule` | `ManageTournament` |
+| `PUT /api/v1/tournaments/{id}/matches/{matchId}/result` | `EnterResults` |
+| `GET /api/v1/tournaments/{id}/standings` | `AllowAnonymous` |
 
 ## Jak zabezpieczyć nowy endpoint
 
-Każdy endpoint ma politykę albo jawne `[AllowAnonymous]`:
+Każdy endpoint ma politykę albo jawne `[AllowAnonymous]`.
+
+**Endpoint bez zasobu** (wystarczy, że użytkownik jest zalogowany):
 
 ```csharp
-[ApiController]
-[Route("api/v1/tournaments")]
-public class TournamentsController : ControllerBase
+[HttpPost]
+[Authorize(Policy = Policies.CreateTournament)]
+[ProducesResponseType(typeof(TournamentDetailsResponse), StatusCodes.Status201Created)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+public async Task<IActionResult> Create(CreateTournamentRequest request, CancellationToken cancellationToken) { ... }
+```
+
+**Endpoint działający na zasobie** (trzeba być jego organizatorem lub kapitanem):
+
+```csharp
+[HttpDelete("{id:guid}")]
+[Authorize] // tylko zalogowani; własność sprawdzamy po wczytaniu turnieju
+[ProducesResponseType(StatusCodes.Status204NoContent)]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
 {
-    [HttpPost]
-    [Authorize(Policy = Policies.ManageTournaments)]
-    [ProducesResponseType(typeof(TournamentResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> Create(CreateTournamentRequest request) { ... }
+    var tournament = await _unitOfWork.Tournaments.GetByIdAsync(id, cancellationToken);
+    if (tournament is null)
+    {
+        return NotFound(...);
+    }
+
+    var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+    if (!authorization.Succeeded)
+    {
+        return Forbid();
+    }
+
+    ...
 }
 ```
 
 Zasady:
 
+- Kolejność sprawdzeń: **401** (brak logowania, robi to atrybut) → **404** (zasób nie istnieje) → **403** (zasób nie należy do użytkownika) → reguły biznesowe (**400/409**).
 - Dodaj `[ProducesResponseType]` dla `401` i `403`, żeby były widoczne w Swaggerze.
-- Nie sprawdzaj ról ręcznie w kodzie akcji (`User.IsInRole(...)`), jeśli da się to wyrazić polityką.
-- Nowa polityka wymaga wpisu w tym dokumencie (macierz i tabela polityk).
-
-## Polityka domyślna i wyjątki
-
-`TODO: decyzja zespołu.` Propozycja: **domyślnie wszystko wymaga zalogowania** (`FallbackPolicy`), a publiczne endpointy otwieramy jawnie. Zapomniany atrybut nie otwiera wtedy luki w zabezpieczeniach.
-
-Endpointy, które muszą mieć `[AllowAnonymous]` (lub `.AllowAnonymous()`):
-
-- `POST /api/v1/auth/register` i `POST /api/v1/auth/login`,
-- endpoint zdrowia aplikacji,
-- `/openapi/v1.json` (`MapOpenApi().AllowAnonymous()`),
-- publiczny podgląd turniejów, jeśli zespół zdecyduje, że nie wymaga logowania.
+- Nie porównuj `OrganizerId` ani `CaptainId` ręcznie w kontrolerze i nie sprawdzaj ról przez `User.IsInRole(...)`. Zawsze używaj polityki.
+- Nowa polityka wymaga wpisu w tym dokumencie (macierz, tabela polityk i tabela endpointów).
 
 ## Kody odpowiedzi
 
 | Sytuacja | Kod |
 |---|---|
 | Brak tokenu, token nieprawidłowy lub wygasły | `401 Unauthorized` |
-| Poprawny token, ale rola bez uprawnień | `403 Forbidden` |
-| Zasób nie istnieje lub użytkownik nie powinien wiedzieć, że istnieje | `404 Not Found` |
+| Poprawny token, ale zasób nie należy do użytkownika (np. cudzy turniej) | `403 Forbidden` |
+| Zasób nie istnieje | `404 Not Found` |
+| Użytkownik ma uprawnienie, ale operacja łamie regułę biznesową | `400 Bad Request` lub `409 Conflict` |
 
-Przy logowaniu „nie ma takiego użytkownika" i „złe hasło" zwracają **ten sam** `401`, żeby nie ujawniać, które adresy e-mail mają konta.
+Turnieje i drużyny są publiczne, więc dla cudzego zasobu zwracamy `403`, a nie `404`: ukrywanie jego istnienia nic nie daje.
+
+Przy logowaniu „nie ma takiego użytkownika” i „złe hasło” zwracają **ten sam** `401`, żeby nie ujawniać, które adresy e-mail mają konta.
 
 ## Reguły oparte o zasób
 
-Same role nie wystarczą dla reguł typu „kapitan edytuje wyłącznie swoją drużynę". Takie reguły realizujemy przez autoryzację opartą o zasób (`IAuthorizationService` i handler wymagania), w ramach zadań dotyczących drużyn. Polityka (`RegisterTeam`) sprawdza rolę, a handler sprawdza własność zasobu.
+Reguły typu „tylko organizator tego turnieju” realizujemy przez autoryzację opartą o zasób:
+
+- wymaganie (np. `TournamentOrganizerRequirement`) i handler `AuthorizationHandler<TRequirement, Tournament>`, który porównuje claim `sub` z `Tournament.OrganizerId` i przepuszcza rolę `Admin`;
+- analogicznie dla drużyny: handler dla `Team` sprawdza `CaptainId` (i dla `ManageTeam` także organizatora turnieju drużyny);
+- handlery rejestrujemy w DI razem z politykami, w tym samym miejscu co polityki;
+- kontroler wczytuje zasób i woła `IAuthorizationService.AuthorizeAsync(User, zasób, polityka)`.
+
+Dzięki temu logika własności jest w jednym miejscu i da się ją przetestować jednostkowo, bez HTTP.
+
+## Dane osobowe w odpowiedziach
+
+Endpointy podglądu są publiczne, więc nie mogą zwracać danych kontaktowych. Dotyczy to dziś pola `ContactEmail` w `TeamResponse`: widzi je każdy, także osoba niezalogowana. Docelowo `ContactEmail` zwracamy tylko kapitanowi drużyny, organizatorowi turnieju i adminowi; pozostali dostają `null`.
 
 ## Dla frontendu (Blazor)
 
-- Role użytkownika są w odpowiedzi logowania (`AuthResponse.Roles`) i w claimie `role` tokenu.
-- Ukrywanie przycisków i widoków według roli to **wygoda użytkownika, a nie zabezpieczenie**. Prawdziwą kontrolę zawsze wykonuje API (`401` i `403`).
-- UI powinien obsługiwać `401` (przekierowanie do logowania) i `403` (komunikat o braku uprawnień).
+- `AuthResponse.UserId` to identyfikator zalogowanego użytkownika. Przyciski zarządzania turniejem pokazujemy, gdy `TournamentDetailsResponse.OrganizerId == UserId` (lub użytkownik ma rolę `Admin`), a przyciski drużyny, gdy `TeamResponse.CaptainId == UserId`.
+- Przycisków „Nowy turniej” i „Zgłoś drużynę” nie ukrywamy według roli: widzi je każdy zalogowany.
+- Ukrywanie przycisków to **wygoda użytkownika, a nie zabezpieczenie**. Prawdziwą kontrolę zawsze wykonuje API (`401` i `403`).
+- UI obsługuje `401` (przekierowanie do logowania) i `403` (komunikat o braku uprawnień).
 
 ## Testowanie
 
-- Test mechanizmu (zadanie KAN-65): kontroler testowy w projekcie `TurniejePro.Tests` z kilkoma politykami, sprawdzający `401`, `403` i `200` dla tokenów poszczególnych ról.
-- Pełna macierz „endpoint × rola × oczekiwany kod" (zadanie KAN-67) opiera się na tabeli w tym dokumencie. Zmiana macierzy oznacza zmianę testów.
-- Tokeny w testach generuje wspólny pomocnik z projektu `Tests` (bez logowania przez HTTP).
+- Pełna macierz „endpoint × użytkownik × oczekiwany kod” jest w `tests/TurniejePro.Tests/AuthorizationMatrixTests.cs`. Zmiana macierzy w tym dokumencie oznacza zmianę testów.
+- Po wprowadzeniu własności zasobów kolumny macierzy testów to: brak tokenu / zalogowany obcy / kapitan tej drużyny / organizator tego turnieju / `Admin` (zadanie TA-14.2.4). Każdy test zasobowy potrzebuje turnieju z ustawionym `OrganizerId` i drużyny z ustawionym `CaptainId`.
+- Handlery wymagań testujemy także jednostkowo: właściciel, obcy, `Admin`, zasób z `OrganizerId == null`.
+- Dodatkowo sprawdzamy `401` dla tokenu nieprawidłowego, wygasłego, podpisanego innym kluczem oraz ze złym `issuer` i `audience`.
+- Tokeny w testach generuje wspólny pomocnik `tests/TurniejePro.Tests/TestTokens.cs` (bez logowania przez HTTP).
 
-### Macierz testów (KAN-67)
+## Stan wdrożenia
 
-- Testy: `tests/TurniejePro.Tests/AuthorizationMatrixTests.cs`. Wiersze macierzy (`Matrix`) to endpoint × brak tokenu / `Spectator` / `Captain` / `Organizer` → oczekiwany kod. Dodatkowo sprawdzamy `401` dla tokenu nieprawidłowego, wygasłego, podpisanego innym kluczem oraz ze złym `issuer` i `audience`.
-- Pomocnik tokenów: `tests/TurniejePro.Tests/TestTokens.cs`. Poprawne tokeny wystawia `ITokenService`, wadliwe składa ręcznie.
-- Endpointy, których jeszcze nie ma w API (zgłoszenia, wyniki), są reprezentowane przez `TestAuthorizationController` (po jednym endpointcie na politykę). Gdy powstanie prawdziwy endpoint, dopisz do macierzy nowy wiersz z jego ścieżką.
-- Nowy chroniony endpoint = nowy wiersz w `Matrix`, a zmiana uprawnień w tabeli powyżej = zmiana oczekiwanych kodów w odpowiednich wierszach.
+Na dzień przyjęcia dokumentu kod realizuje jeszcze stary model ról globalnych. Zmiany wprowadzają zadania z epiku „Uprawnienia i własność zasobów”:
+
+| Element | Stan w kodzie | Zadanie |
+|---|---|---|
+| Polityka domyślna (wymagane logowanie) i publiczny podgląd | zrobione | — |
+| Role `User` i `Admin` zamiast `Organizer`/`Participant`/`Spectator`; tworzenie turnieju i zgłaszanie drużyny dla każdego zalogowanego | do zrobienia | TA-14.2.2 |
+| Handlery własności i polityki `ManageTournament`/`ManageTeam` w kontrolerach | do zrobienia (dziś każdy organizator może zarządzać każdym turniejem) | TA-14.2.1 |
+| `EnterResults` tylko dla organizatora turnieju | do zrobienia (dziś także każdy kapitan, w każdym meczu) | TA-14.2.3 |
+| Testy 401/403 dla cudzych zasobów | do zrobienia | TA-14.2.4 |
+| Widoczność akcji w UI według `OrganizerId`/`CaptainId` | do zrobienia | TA-14.2.5 |
+| `ContactEmail` tylko dla uprawnionych | do zrobienia | do dopisania w Jirze |
+| `PayEntryFee` | do zrobienia | epik „Opłata wpisowa przez PayPal” |
 
 ## Historia decyzji
 
-| Data | Decyzja | Uczestnicy |
+| Data | Decyzja | Zadanie |
 |---|---|---|
-| `TODO` | Autoryzacja przez polityki oparte na rolach, nazwane od czynności | `TODO` |
-| `TODO` | Polityka domyślna (wymagane logowanie) | `TODO` |
-| `TODO` | Zakres uprawnień kapitana (wyniki meczów) | `TODO` |
+| 26.10.2026 | Autoryzacja przez polityki nazwane od czynności | KAN-65 |
+| 26.10.2026 | Polityka domyślna: wymagane logowanie, publiczne endpointy otwierane jawnie | KAN-65 |
+| 14.11.2026 | Role przypisane do zasobu zamiast globalnych ról organizatora, kapitana i kibica; globalnie tylko `User` i `Admin` | KAN-278 |
+| 14.11.2026 | Wyniki wpisuje tylko organizator turnieju (kapitan nie) | KAN-278 |
+| 14.11.2026 | Podgląd, eksport i statystyki są publiczne, także bez logowania | KAN-278 |
+| 14.11.2026 | Dla cudzego zasobu zwracamy `403`, a nie `404` | KAN-278 |
