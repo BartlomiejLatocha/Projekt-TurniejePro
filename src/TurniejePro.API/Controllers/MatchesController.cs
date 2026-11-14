@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using TurniejePro.Api.Auth;
 using TurniejePro.Api.Mapping;
 using TurniejePro.Contracts.Matches;
+using TurniejePro.Domain.Repositories;
 using TurniejePro.Domain.Scheduling;
 
 namespace TurniejePro.Api.Controllers;
@@ -12,14 +13,21 @@ namespace TurniejePro.Api.Controllers;
 public class MatchesController : ControllerBase
 {
     private readonly MatchResultService _matchResultService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuthorizationService _authorizationService;
 
-    public MatchesController(MatchResultService matchResultService)
+    public MatchesController(
+        MatchResultService matchResultService,
+        IUnitOfWork unitOfWork,
+        IAuthorizationService authorizationService)
     {
         _matchResultService = matchResultService;
+        _unitOfWork = unitOfWork;
+        _authorizationService = authorizationService;
     }
 
     /// <summary>
-    /// Wprowadza lub aktualizuje wynik meczu w turnieju.
+    /// Wprowadza lub aktualizuje wynik meczu w turnieju. Tylko organizator turnieju lub administrator.
     /// </summary>
     [HttpPut("{matchId:guid}/result")]
     [Authorize(Policy = Policies.EnterResults)]
@@ -35,6 +43,21 @@ public class MatchesController : ControllerBase
         [FromBody] UpdateMatchResultRequest request,
         CancellationToken cancellationToken)
     {
+        var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken);
+        if (tournament is null)
+        {
+            return Problem(
+                detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Resource Not Found");
+        }
+
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
+        {
+            return Forbid();
+        }
+
         try
         {
             var updatedMatch = await _matchResultService.SetResultAsync(

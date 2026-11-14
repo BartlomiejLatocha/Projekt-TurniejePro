@@ -15,10 +15,12 @@ namespace TurniejePro.Api.Controllers;
 public class TournamentsController : ControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuthorizationService _authorizationService;
 
-    public TournamentsController(IUnitOfWork unitOfWork)
+    public TournamentsController(IUnitOfWork unitOfWork, IAuthorizationService authorizationService)
     {
         _unitOfWork = unitOfWork;
+        _authorizationService = authorizationService;
     }
 
     /// <summary>
@@ -138,6 +140,12 @@ public class TournamentsController : ControllerBase
             });
         }
 
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
+        {
+            return Forbid();
+        }
+
         try
         {
             tournament.UpdateDetails(
@@ -185,6 +193,12 @@ public class TournamentsController : ControllerBase
                 Title = "Nie znaleziono turnieju",
                 Detail = $"Turniej o identyfikatorze '{id}' nie istnieje."
             });
+        }
+
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
+        {
+            return Forbid();
         }
 
         if (tournament.IsStarted)

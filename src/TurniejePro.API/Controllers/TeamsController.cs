@@ -14,10 +14,12 @@ namespace TurniejePro.Api.Controllers;
 public class TeamsController : ControllerBase
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuthorizationService _authorizationService;
 
-    public TeamsController(IUnitOfWork unitOfWork)
+    public TeamsController(IUnitOfWork unitOfWork, IAuthorizationService authorizationService)
     {
         _unitOfWork = unitOfWork;
+        _authorizationService = authorizationService;
     }
 
     /// <summary>
@@ -133,6 +135,12 @@ public class TeamsController : ControllerBase
             });
         }
 
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
+        {
+            return Forbid();
+        }
+
         if (tournament.IsStarted)
         {
             return BadRequest(new ProblemDetails
@@ -201,13 +209,29 @@ public class TeamsController : ControllerBase
         }
 
         var tournament = await _unitOfWork.Tournaments.GetWithDetailsAsync(team.TournamentId, cancellationToken);
-        if (tournament is null || tournament.IsStarted)
+        if (tournament is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono turnieju",
+                Detail = "Turniej powiązany z tą drużyną nie istnieje."
+            });
+        }
+
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
+        {
+            return Forbid();
+        }
+
+        if (tournament.IsStarted)
         {
             return BadRequest(new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Operacja niedozwolona",
-                Detail = "Nie można odrzucić zgłoszenia w rozpoczętym lub nieistniejącym turnieju."
+                Detail = "Nie można odrzucić zgłoszenia w rozpoczętym turnieju."
             });
         }
 
