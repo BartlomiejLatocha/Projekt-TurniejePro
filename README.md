@@ -8,7 +8,7 @@ Aplikacja webowa do organizacji turniejów sportowych: tworzenie turniejów, zg�
 
 ## Główne funkcje
 
-- Konta użytkowników i role (organizator, uczestnik, kibic z dostępem tylko do podglądu)
+- Konta użytkowników: każdy zalogowany może założyć turniej (zostaje jego organizatorem) i zgłosić drużynę (zostaje jej kapitanem); podgląd turniejów jest publiczny. Szczegóły: [docs/authorization.md](docs/authorization.md)
 - Tworzenie turniejów: nazwa, dyscyplina, system rozgrywek (liga/puchar), termin, limit drużyn
 - Zgłaszanie drużyn i zawodników, akceptacja zgłoszeń przez organizatora
 - Generowanie terminarza: round-robin (liga) i drabinka pucharowa
