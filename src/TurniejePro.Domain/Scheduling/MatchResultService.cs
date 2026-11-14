@@ -1,4 +1,5 @@
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 using TurniejePro.Domain.Repositories;
 
 namespace TurniejePro.Domain.Scheduling;
@@ -23,7 +24,7 @@ public class MatchResultService
         var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken);
         if (tournament is null)
         {
-            throw new KeyNotFoundException($"Nie odnaleziono turnieju o ID '{tournamentId}'.");
+            throw new NotFoundException($"Nie odnaleziono turnieju o ID '{tournamentId}'.");
         }
 
         // Pobranie meczów turnieju ze śledzeniem (EF Core Tracker) i drużynami
@@ -33,7 +34,7 @@ public class MatchResultService
         var match = matches.FirstOrDefault(m => m.Id == matchId);
         if (match is null || match.TournamentId != tournamentId)
         {
-            throw new KeyNotFoundException($"Mecz o ID '{matchId}' nie istnieje w turnieju '{tournamentId}'.");
+            throw new NotFoundException($"Mecz o ID '{matchId}' nie istnieje w turnieju '{tournamentId}'.");
         }
 
         // 3. Sprawdzenie typu meczu: wolny los lub anulowany -> 409
@@ -51,7 +52,7 @@ public class MatchResultService
         // 5. Remis w fazie pucharowej -> 400
         if (tournament.Format == TournamentFormat.Cup && homeScore == awayScore)
         {
-            throw new InvalidOperationException("W fazie pucharowej mecz nie może zakończyć się remisowo.");
+            throw new BusinessRuleException("W fazie pucharowej mecz nie może zakończyć się remisowo.");
         }
 
         Match? nextMatch = null;

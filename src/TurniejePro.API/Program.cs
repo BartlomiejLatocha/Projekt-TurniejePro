@@ -1,4 +1,5 @@
 using TurniejePro.Api.Auth;
+using TurniejePro.Api.Errors;
 using TurniejePro.Api.Startup;
 using TurniejePro.Data;
 using TurniejePro.Domain.Scheduling;
@@ -12,6 +13,7 @@ builder.Services.AddScoped<ScheduleService>();
 builder.Services.AddScoped<MatchResultService>();
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddApiErrorHandling();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi(options =>
@@ -29,6 +31,9 @@ var app = builder.Build();
 
 // Migracje i role w każdym środowisku; konto testowe organizatora tylko w Development (DevSeed w User Secrets)
 await app.InitializeDatabaseAsync();
+
+// Błędy jako ProblemDetails z polskimi tytułami; wyjątki domenowe → 400/404/409 (docs/api-contracts.md)
+app.UseApiErrorHandling();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

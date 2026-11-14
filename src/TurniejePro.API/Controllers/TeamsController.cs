@@ -72,32 +72,21 @@ public class TeamsController : ControllerBase
             captainId = parsedGuid;
         }
 
-        try
-        {
-            var team = new Team(request.Name, request.TournamentId, captainId, request.ContactEmail);
+        // Błędne dane drużyny lub zawodników (ArgumentException, BusinessRuleException) zamienia na 400 globalny handler
+        var team = new Team(request.Name, request.TournamentId, captainId, request.ContactEmail);
 
-            if (request.Players is not null)
+        if (request.Players is not null)
+        {
+            foreach (var playerDto in request.Players)
             {
-                foreach (var playerDto in request.Players)
-                {
-                    team.AddPlayer(playerDto.FullName, playerDto.JerseyNumber);
-                }
+                team.AddPlayer(playerDto.FullName, playerDto.JerseyNumber);
             }
-
-            await _unitOfWork.Teams.AddAsync(team, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            return CreatedAtAction(nameof(GetById), new { id = team.Id }, team.ToResponse());
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Błąd walidacji zgłoszenia",
-                Detail = ex.Message
-            });
-        }
+
+        await _unitOfWork.Teams.AddAsync(team, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return CreatedAtAction(nameof(GetById), new { id = team.Id }, team.ToResponse());
     }
 
     /// <summary>

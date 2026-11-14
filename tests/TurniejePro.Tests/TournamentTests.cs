@@ -1,5 +1,6 @@
 using TurniejePro.Domain;
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 using Xunit;
 
 namespace TurniejePro.Tests;
@@ -83,12 +84,12 @@ public class TournamentTests
     }
 
     [Fact]
-    public void Start_WhenAlreadyStarted_ShouldThrowInvalidOperationException()
+    public void Start_WhenAlreadyStarted_ShouldThrowBusinessRuleException()
     {
         var tournament = new Tournament("Turniej CS");
         tournament.Start();
 
-        var ex = Assert.Throws<InvalidOperationException>(() => tournament.Start());
+        var ex = Assert.Throws<BusinessRuleException>(() => tournament.Start());
         Assert.Equal("Turniej został już rozpoczęty.", ex.Message);
     }
 
@@ -135,12 +136,12 @@ public class TournamentTests
     }
 
     [Fact]
-    public void UpdateDetails_WhenStarted_ShouldThrowInvalidOperationException()
+    public void UpdateDetails_WhenStarted_ShouldThrowBusinessRuleException()
     {
         var tournament = new Tournament("Turniej", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8);
         tournament.Start();
 
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<BusinessRuleException>(() =>
             tournament.UpdateDetails("Nowa", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8));
     }
 
@@ -181,14 +182,14 @@ public class TournamentTests
     }
 
     [Fact]
-    public void UpdateDetails_MaxTeamsLessThanRegisteredTeams_ShouldThrowInvalidOperationException()
+    public void UpdateDetails_MaxTeamsLessThanRegisteredTeams_ShouldThrowBusinessRuleException()
     {
         var tournament = new Tournament("Turniej", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8);
         tournament.Teams.Add(new Team("Drużyna 1", tournament.Id));
         tournament.Teams.Add(new Team("Drużyna 2", tournament.Id));
         tournament.Teams.Add(new Team("Drużyna 3", tournament.Id));
 
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<BusinessRuleException>(() =>
             tournament.UpdateDetails("Turniej", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 2));
     }
 

@@ -1,5 +1,6 @@
 using TurniejePro.Domain;
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 using TurniejePro.Domain.Repositories;
 using TurniejePro.Domain.Scheduling;
 using Xunit;
@@ -67,7 +68,7 @@ public class MatchResultServiceTests
     }
 
     [Fact]
-    public async Task SetResultAsync_NonExistentTournamentOrMatch_ThrowsKeyNotFoundException()
+    public async Task SetResultAsync_NonExistentTournamentOrMatch_ThrowsNotFoundException()
     {
         // Arrange
         var tournament = new Tournament("Liga", "Opis", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(1), 8, null);
@@ -75,14 +76,14 @@ public class MatchResultServiceTests
         var sut = new MatchResultService(fakeUow);
 
         // Act & Assert: Nieistniejący turniej
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => sut.SetResultAsync(Guid.NewGuid(), Guid.NewGuid(), 1, 0));
+        await Assert.ThrowsAsync<NotFoundException>(() => sut.SetResultAsync(Guid.NewGuid(), Guid.NewGuid(), 1, 0));
 
         // Act & Assert: Nieistniejący mecz w prawidłowym turnieju
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => sut.SetResultAsync(tournament.Id, Guid.NewGuid(), 1, 0));
+        await Assert.ThrowsAsync<NotFoundException>(() => sut.SetResultAsync(tournament.Id, Guid.NewGuid(), 1, 0));
     }
 
     [Fact]
-    public async Task SetResultAsync_CupDraw_ThrowsInvalidOperationException()
+    public async Task SetResultAsync_CupDraw_ThrowsBusinessRuleException()
     {
         // Arrange
         var tournament = new Tournament("Puchar", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 8, null);
@@ -94,7 +95,7 @@ public class MatchResultServiceTests
         var sut = new MatchResultService(fakeUow);
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.SetResultAsync(tournament.Id, match.Id, 2, 2));
+        await Assert.ThrowsAsync<BusinessRuleException>(() => sut.SetResultAsync(tournament.Id, match.Id, 2, 2));
     }
 
     [Fact]

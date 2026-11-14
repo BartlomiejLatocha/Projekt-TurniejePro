@@ -88,32 +88,21 @@ public class TournamentsController : ControllerBase
             organizerId = parsedGuid;
         }
 
-        try
-        {
-            var tournament = new Tournament(
-                request.Name,
-                request.Discipline,
-                (Domain.Enums.TournamentFormat)request.Format,
-                request.StartsAt,
-                request.MaxTeams,
-                organizerId);
+        // Błędne dane turnieju (ArgumentException z encji) zamienia na 400 globalny handler wyjątków
+        var tournament = new Tournament(
+            request.Name,
+            request.Discipline,
+            (Domain.Enums.TournamentFormat)request.Format,
+            request.StartsAt,
+            request.MaxTeams,
+            organizerId);
 
-            await _unitOfWork.Tournaments.AddAsync(tournament, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.Tournaments.AddAsync(tournament, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var response = tournament.ToDetailsResponse();
+        var response = tournament.ToDetailsResponse();
 
-            return CreatedAtAction(nameof(GetById), new { id = tournament.Id }, response);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Błąd walidacji biznesowej",
-                Detail = ex.Message
-            });
-        }
+        return CreatedAtAction(nameof(GetById), new { id = tournament.Id }, response);
     }
 
     /// <summary>
@@ -146,29 +135,19 @@ public class TournamentsController : ControllerBase
             return Forbid();
         }
 
-        try
-        {
-            tournament.UpdateDetails(
-                request.Name,
-                request.Discipline,
-                (Domain.Enums.TournamentFormat)request.Format,
-                request.StartsAt,
-                request.MaxTeams);
+        // Rozpoczęty turniej i limit mniejszy niż liczba drużyn (BusinessRuleException) oraz błędne dane
+        // (ArgumentException) zamienia na 400 globalny handler wyjątków
+        tournament.UpdateDetails(
+            request.Name,
+            request.Discipline,
+            (Domain.Enums.TournamentFormat)request.Format,
+            request.StartsAt,
+            request.MaxTeams);
 
-            _unitOfWork.Tournaments.Update(tournament);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        _unitOfWork.Tournaments.Update(tournament);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return Ok(tournament.ToDetailsResponse());
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Błąd modyfikacji turnieju",
-                Detail = ex.Message
-            });
-        }
+        return Ok(tournament.ToDetailsResponse());
     }
 
     /// <summary>

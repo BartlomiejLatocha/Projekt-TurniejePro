@@ -1,4 +1,5 @@
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 
 namespace TurniejePro.Domain;
 
@@ -76,7 +77,7 @@ public class Match
     {
         if (Status != MatchStatus.Scheduled)
         {
-            throw new InvalidOperationException("Tylko zaplanowany mecz można rozpocząć.");
+            throw new BusinessRuleException("Tylko zaplanowany mecz można rozpocząć.");
         }
 
         Status = MatchStatus.InProgress;

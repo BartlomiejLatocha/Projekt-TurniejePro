@@ -1,4 +1,5 @@
 using TurniejePro.Domain.Enums;
+using TurniejePro.Domain.Exceptions;
 
 namespace TurniejePro.Domain;
 
@@ -69,7 +70,7 @@ public class Team
 
         if (jerseyNumber.HasValue && Players.Any(p => p.JerseyNumber == jerseyNumber.Value))
         {
-            throw new InvalidOperationException($"Zawodnik z numerem {jerseyNumber.Value} już istnieje w tej drużynie.");
+            throw new BusinessRuleException($"Zawodnik z numerem {jerseyNumber.Value} już istnieje w tej drużynie.");
         }
 
         var player = new Player(fullName, Id, jerseyNumber);
