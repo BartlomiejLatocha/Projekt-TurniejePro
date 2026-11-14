@@ -11,7 +11,7 @@ Dokument opisuje, jak API zamienia wynik algorytmów z `Domain/Scheduling` na me
 - **Algorytmy ligi:** `RoundRobinScheduler`, `RoundRobinRound`, `RoundRobinPairing`.
 - **Algorytmy pucharu:** `KnockoutBracketGenerator`, `KnockoutBracketAdvancer`, `BracketRound`, `BracketMatch`.
 - **Encja `Match`:** turniej, numer rundy, drużyny (opcjonalne), wynik (opcjonalny), status, termin (opcjonalny).
-- **Polityki:** `ManageTournaments` (generowanie i usuwanie terminarza), `EnterResults` (wyniki).
+- **Polityki:** `ManageTournament` (generowanie i usuwanie terminarza), `EnterResults` (wyniki). Obie są zasobowe: przepuszczają tylko organizatora danego turnieju i administratora (szczegóły w [authorization.md](authorization.md)).
 
 `BracketMatch` opisuje mecz drabinki polami: `Position` (od 1, od góry drabinki), `HomeTeamId`, `AwayTeamId`, `IsBye` i `WinnerId`. Encja `Match` nie ma dziś `Position` ani `IsBye`, więc bez ich dodania nie da się zapisać drabinki w sposób, który pozwala awansować zwycięzców.
 

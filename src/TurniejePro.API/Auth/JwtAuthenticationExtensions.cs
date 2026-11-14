@@ -57,8 +57,10 @@ public static class JwtAuthenticationExtensions
             .AddPolicy(Policies.ManageTournaments, p => p.RequireRole(Roles.Organizer, Roles.Admin))
             .AddPolicy(Policies.AcceptApplications, p => p.RequireRole(Roles.Organizer, Roles.Admin))
             .AddPolicy(Policies.RegisterTeam, p => p.RequireRole(Roles.Organizer, Roles.Captain))
-            .AddPolicy(Policies.EnterResults, p => p.RequireRole(Roles.Organizer, Roles.Captain, Roles.Admin))
             .AddPolicy(Policies.ManageTournament, p => p
+                .RequireAuthenticatedUser()
+                .AddRequirements(new TournamentOrganizerRequirement()))
+            .AddPolicy(Policies.EnterResults, p => p
                 .RequireAuthenticatedUser()
                 .AddRequirements(new TournamentOrganizerRequirement()));
 

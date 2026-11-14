@@ -20,9 +20,8 @@ public class TestAuthorizationController : ControllerBase
     [Authorize(Policy = Policies.AcceptApplications)]
     public IActionResult AcceptApplications() => Ok("Dostęp przyznany dla Organizatora (zgłoszenia)");
 
-    [HttpGet("enter-results")]
-    [Authorize(Policy = Policies.EnterResults)]
-    public IActionResult EnterResults() => Ok("Dostęp przyznany dla Kapitana lub Organizatora (wyniki)");
+    // EnterResults jest polityką zasobową (KAN-285): sprawdza ją prawdziwy endpoint wyników po wczytaniu turnieju,
+    // więc nie ma tu endpointu testowego. Zobacz TournamentOwnershipIntegrationTests.
 
     // Brak atrybutów autoryzacji: o dostępie decyduje polityka domyślna (FallbackPolicy = wymagane logowanie).
     [HttpGet("no-attributes")]

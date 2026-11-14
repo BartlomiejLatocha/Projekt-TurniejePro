@@ -1,6 +1,9 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using TurniejePro.Api.Auth;
 using TurniejePro.Contracts.Matches;
@@ -209,6 +212,46 @@ public class TournamentOwnershipIntegrationTests : IClassFixture<CustomWebApplic
     }
 
     [Fact]
+    public async Task SetResult_ByCaptainOfTeamPlayingInMatch_Returns403AndDoesNotSaveScore()
+    {
+        // KAN-285: kapitan nie wpisuje wyniku nawet meczu własnej drużyny
+        var captainId = Guid.NewGuid();
+        var (tournamentId, matchId) = await SeedTournamentWithMatchAsync(_ownerId, homeCaptainId: captainId);
+
+        var response = await SendAsync(HttpMethod.Put, ResultUrl(tournamentId, matchId), Token(captainId, Roles.Captain), new UpdateMatchResultRequest(3, 0));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Null(Load<Match>(matchId)!.HomeScore);
+    }
+
+    [Fact]
+    public async Task SetResult_BySpectator_Returns403()
+    {
+        var (tournamentId, matchId) = await SeedTournamentWithMatchAsync(_ownerId);
+
+        var response = await SendAsync(HttpMethod.Put, ResultUrl(tournamentId, matchId), Token(Guid.NewGuid(), Roles.Fan), new UpdateMatchResultRequest(2, 1));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task EnterResultsPolicy_AllowsOnlyOrganizerAndAdmin()
+    {
+        var tournament = new Tournament("Turniej", "Piłka nożna", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(7), 8, _ownerId);
+        using var scope = _factory.Services.CreateScope();
+        var authorization = scope.ServiceProvider.GetRequiredService<IAuthorizationService>();
+
+        async Task<bool> CanEnterResults(Guid userId, string role) =>
+            (await authorization.AuthorizeAsync(Principal(userId, role), tournament, Policies.EnterResults)).Succeeded;
+
+        Assert.True(await CanEnterResults(_ownerId, Roles.Organizer));
+        Assert.True(await CanEnterResults(Guid.NewGuid(), Roles.Admin));
+        Assert.False(await CanEnterResults(Guid.NewGuid(), Roles.Captain));
+        Assert.False(await CanEnterResults(Guid.NewGuid(), Roles.Organizer));
+        Assert.False(await CanEnterResults(Guid.NewGuid(), Roles.Fan));
+    }
+
+    [Fact]
     public async Task SetResult_ByCaptain_Returns403()
     {
         var (tournamentId, matchId) = await SeedTournamentWithMatchAsync(_ownerId);
@@ -272,12 +315,19 @@ public class TournamentOwnershipIntegrationTests : IClassFixture<CustomWebApplic
         return tournament.Id;
     }
 
-    private async Task<Guid> SeedTeamAsync(Guid tournamentId, bool accepted)
+    private static ClaimsPrincipal Principal(Guid userId, string role) =>
+        new(new ClaimsIdentity(
+            [new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()), new Claim("role", role)],
+            "Test",
+            "name",
+            "role"));
+
+    private async Task<Guid> SeedTeamAsync(Guid tournamentId, bool accepted, Guid? captainId = null)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TurniejeProDbContext>();
 
-        var team = new Team($"Drużyna {Guid.NewGuid().ToString()[..8]}", tournamentId);
+        var team = new Team($"Drużyna {Guid.NewGuid().ToString()[..8]}", tournamentId, captainId);
         if (accepted)
         {
             team.Accept();
@@ -300,10 +350,10 @@ public class TournamentOwnershipIntegrationTests : IClassFixture<CustomWebApplic
         return tournamentId;
     }
 
-    private async Task<(Guid TournamentId, Guid MatchId)> SeedTournamentWithMatchAsync(Guid organizerId)
+    private async Task<(Guid TournamentId, Guid MatchId)> SeedTournamentWithMatchAsync(Guid organizerId, Guid? homeCaptainId = null)
     {
         var tournamentId = await SeedTournamentAsync(organizerId);
-        var homeId = await SeedTeamAsync(tournamentId, accepted: true);
+        var homeId = await SeedTeamAsync(tournamentId, accepted: true, homeCaptainId);
         var awayId = await SeedTeamAsync(tournamentId, accepted: true);
 
         using var scope = _factory.Services.CreateScope();
