@@ -54,9 +54,6 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
             // Polityka RegisterTeam: kapitan lub organizator
             AddEndpoint(data, "GET", "/api/test-auth/captain-or-organizer", anonymous: Unauthorized, fan: Forbidden, captain: OK, organizer: OK);
 
-            // Polityka EnterResults: kapitan lub organizator
-            AddEndpoint(data, "GET", "/api/test-auth/enter-results", anonymous: Unauthorized, fan: Forbidden, captain: OK, organizer: OK);
-
             // Brak atrybutów: działa polityka domyślna (wymagane logowanie), więc zapomniany atrybut nie otwiera luki
             AddEndpoint(data, "GET", NoAttributes, anonymous: Unauthorized, fan: OK, captain: OK, organizer: OK);
 

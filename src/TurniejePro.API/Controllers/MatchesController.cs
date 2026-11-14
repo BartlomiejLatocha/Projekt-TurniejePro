@@ -30,7 +30,7 @@ public class MatchesController : ControllerBase
     /// Wprowadza lub aktualizuje wynik meczu w turnieju. Tylko organizator turnieju lub administrator.
     /// </summary>
     [HttpPut("{matchId:guid}/result")]
-    [Authorize(Policy = Policies.EnterResults)]
+    [Authorize] // tylko zalogowani; organizatora turnieju sprawdza polityka EnterResults po wczytaniu turnieju
     [ProducesResponseType(typeof(MatchResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -52,7 +52,7 @@ public class MatchesController : ControllerBase
                 title: "Resource Not Found");
         }
 
-        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.EnterResults);
         if (!authorization.Succeeded)
         {
             return Forbid();
