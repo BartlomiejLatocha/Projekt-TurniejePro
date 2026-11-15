@@ -23,9 +23,9 @@ public class TournamentOrganizerHandlerTests
     }
 
     [Fact]
-    public async Task OtherUser_WithOrganizerRole_Fails()
+    public async Task OtherUser_WithUserRole_Fails()
     {
-        var succeeded = await AuthorizeAsync(User(Guid.NewGuid(), Roles.Organizer), Tournament(OrganizerId));
+        var succeeded = await AuthorizeAsync(User(Guid.NewGuid(), Roles.User), Tournament(OrganizerId));
 
         Assert.False(succeeded);
     }
@@ -43,14 +43,14 @@ public class TournamentOrganizerHandlerTests
     {
         var tournament = Tournament(organizerId: null);
 
-        Assert.False(await AuthorizeAsync(User(Guid.NewGuid(), Roles.Organizer), tournament));
+        Assert.False(await AuthorizeAsync(User(Guid.NewGuid(), Roles.User), tournament));
         Assert.True(await AuthorizeAsync(User(Guid.NewGuid(), Roles.Admin), tournament));
     }
 
     [Fact]
     public async Task UserWithoutSubjectClaim_Fails()
     {
-        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("role", Roles.Organizer)], "Test"));
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("role", Roles.User)], "Test"));
 
         var succeeded = await AuthorizeAsync(user, Tournament(OrganizerId));
 

@@ -7,6 +7,7 @@ namespace TurniejePro.Contracts.Auth;
 public static class RoleNames
 {
     public const string Admin = "Admin";
+    public const string User = "User";
     public const string Organizer = "Organizer";
     public const string Participant = "Participant";
     public const string Spectator = "Spectator";

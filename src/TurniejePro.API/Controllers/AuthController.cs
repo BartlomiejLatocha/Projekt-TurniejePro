@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
         }
 
         // Nadanie domyślnej roli i sprawdzenie wyniku (ochrona przed cichym błędem)
-        const string defaultRole = Roles.Fan;
+        const string defaultRole = Roles.User;
         if (!await _roleManager.RoleExistsAsync(defaultRole))
         {
             await _roleManager.CreateAsync(new IdentityRole<Guid>(defaultRole));

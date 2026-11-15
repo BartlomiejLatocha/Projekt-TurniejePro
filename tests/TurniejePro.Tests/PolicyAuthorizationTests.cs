@@ -23,35 +23,35 @@ public class PolicyAuthorizationTests : IClassFixture<CustomWebApplicationFactor
     public async Task Endpoint_WithoutToken_Returns401Unauthorized()
     {
         // Act
-        var response = await _client.GetAsync("/api/test-auth/organizer-only");
+        var response = await _client.GetAsync("/api/test-auth/create-tournament");
 
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
-    public async Task Endpoint_WithInsufficientRole_Returns403Forbidden()
+    public async Task CreateTournamentPolicy_WithUserRole_Returns200Ok()
     {
-        // Arrange: Kibic próbuje wywołać endpoint wymagający polityki ManageTournaments (Organizator)
-        var token = _tokenService.CreateToken(Guid.NewGuid(), "kibic@example.com", new[] { Roles.Fan }).AccessToken;
+        // Arrange
+        var token = _tokenService.CreateToken(Guid.NewGuid(), "user@example.com", new[] { Roles.User }).AccessToken;
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         // Act
-        var response = await _client.GetAsync("/api/test-auth/organizer-only");
+        var response = await _client.GetAsync("/api/test-auth/create-tournament");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
-    public async Task Endpoint_WithRequiredRole_Returns200Ok()
+    public async Task RegisterTeamPolicy_WithUserRole_Returns200Ok()
     {
-        // Arrange: Organizator wywołuje endpoint chroniony polityką ManageTournaments
-        var token = _tokenService.CreateToken(Guid.NewGuid(), "organizator@example.com", new[] { Roles.Organizer }).AccessToken;
+        // Arrange
+        var token = _tokenService.CreateToken(Guid.NewGuid(), "user@example.com", new[] { Roles.User }).AccessToken;
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         // Act
-        var response = await _client.GetAsync("/api/test-auth/organizer-only");
+        var response = await _client.GetAsync("/api/test-auth/register-team");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

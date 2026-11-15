@@ -83,7 +83,7 @@ public class ApiErrorHandlingTests : IClassFixture<CustomWebApplicationFactory>
     {
         var invalid = new CreateTournamentRequest("AB", "Szachy", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), MaxTeams: 1);
 
-        using var response = await SendAsync(HttpMethod.Post, "/api/v1/tournaments", _tokens.ForRoles(Roles.Organizer), invalid);
+        using var response = await SendAsync(HttpMethod.Post, "/api/v1/tournaments", _tokens.ForRoles(Roles.User), invalid);
 
         var problem = await ReadProblemAsync(response);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -105,7 +105,7 @@ public class ApiErrorHandlingTests : IClassFixture<CustomWebApplicationFactory>
     {
         var tournamentId = await SeedTournamentAsync();
 
-        using var response = await SendAsync(HttpMethod.Delete, $"/api/v1/tournaments/{tournamentId}", _tokens.ForRoles(Roles.Organizer));
+        using var response = await SendAsync(HttpMethod.Delete, $"/api/v1/tournaments/{tournamentId}", _tokens.ForRoles(Roles.User));
 
         var problem = await ReadProblemAsync(response);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);

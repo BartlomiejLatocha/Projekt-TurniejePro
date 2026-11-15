@@ -32,7 +32,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
     public async Task CreateTournament_WithValidData_Returns201CreatedAndLocationHeader()
     {
         // Arrange
-        AuthenticateAs(Roles.Organizer);
+        AuthenticateAs(Roles.User);
         var request = new CreateTournamentRequest(
             Name: "E-Sport Champions League",
             Discipline: "Valorant",
@@ -58,7 +58,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
     public async Task CreateTournament_WithInvalidData_Returns400BadRequest()
     {
         // Arrange: MaxTeams < 2 (złamana walidacja DTO/domeny)
-        AuthenticateAs(Roles.Organizer);
+        AuthenticateAs(Roles.User);
         var request = new CreateTournamentRequest(
             Name: "AB", // Za krótka nazwa (min. 3 znaki)
             Discipline: "LOL",
@@ -94,7 +94,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
     public async Task UpdateTournament_WhenExists_Returns200Ok()
     {
         // Arrange: Najpierw tworzymy turniej
-        AuthenticateAs(Roles.Organizer);
+        AuthenticateAs(Roles.User);
         var createRequest = new CreateTournamentRequest(
             Name: "Turniej do edycji",
             Discipline: "Szachy",
@@ -131,7 +131,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
     public async Task DeleteTournament_WhenNotStarted_Returns204NoContent()
     {
         // Arrange
-        AuthenticateAs(Roles.Organizer);
+        AuthenticateAs(Roles.User);
         var createRequest = new CreateTournamentRequest(
             Name: "Turniej do usunięcia",
             Discipline: "Fifa",

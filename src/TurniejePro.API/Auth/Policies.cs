@@ -2,8 +2,7 @@ namespace TurniejePro.Api.Auth;
 
 public static class Policies
 {
-    public const string ManageTournaments = "ManageTournaments";
-    public const string AcceptApplications = "AcceptApplications";
+    public const string CreateTournament = "CreateTournament";
     public const string RegisterTeam = "RegisterTeam";
 
     /// <summary>

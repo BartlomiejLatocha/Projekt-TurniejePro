@@ -30,7 +30,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<CustomWebApplicati
 
     private async Task<Guid> CreateTestTournamentAsync()
     {
-        AuthenticateAs(Roles.Organizer);
+        AuthenticateAs(Roles.User);
         var createRequest = new CreateTournamentRequest(
             Name: $"Turniej Testowy {Guid.NewGuid().ToString()[..8]}",
             Discipline: "Piłka Nożna",
@@ -49,7 +49,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<CustomWebApplicati
     {
         // Arrange
         var tournamentId = await CreateTestTournamentAsync();
-        AuthenticateAs(Roles.Captain);
+        AuthenticateAs(Roles.User);
 
         var request = new CreateTeamRequest(
             TournamentId: tournamentId,
@@ -80,7 +80,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<CustomWebApplicati
     {
         // Arrange
         var tournamentId = await CreateTestTournamentAsync();
-        AuthenticateAs(Roles.Captain);
+        AuthenticateAs(Roles.User);
 
         var request = new CreateTeamRequest(
             TournamentId: tournamentId,
@@ -105,7 +105,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<CustomWebApplicati
     {
         // Arrange
         var tournamentId = await CreateTestTournamentAsync();
-        AuthenticateAs(Roles.Captain);
+        AuthenticateAs(Roles.User);
 
         var request = new CreateTeamRequest(
             TournamentId: tournamentId,

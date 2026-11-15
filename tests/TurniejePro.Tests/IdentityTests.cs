@@ -58,15 +58,11 @@ public class IdentityTests : IDisposable
     {
         // Assert
         Assert.Equal("Admin", UserRoles.Admin);
-        Assert.Equal("Organizer", UserRoles.Organizer);
-        Assert.Equal("Participant", UserRoles.Participant);
-        Assert.Equal("Spectator", UserRoles.Spectator);
+        Assert.Equal("User", UserRoles.User);
 
-        Assert.Equal(4, UserRoles.All.Count);
+        Assert.Equal(2, UserRoles.All.Count);
         Assert.Contains(UserRoles.Admin, UserRoles.All);
-        Assert.Contains(UserRoles.Organizer, UserRoles.All);
-        Assert.Contains(UserRoles.Participant, UserRoles.All);
-        Assert.Contains(UserRoles.Spectator, UserRoles.All);
+        Assert.Contains(UserRoles.User, UserRoles.All);
     }
 
     [Fact]
@@ -87,13 +83,13 @@ public class IdentityTests : IDisposable
 
         // Assert
         var allRoles = await context.Roles.ToListAsync();
-        Assert.Equal(4, allRoles.Count);
+        Assert.Equal(2, allRoles.Count);
         Assert.All(UserRoles.All, role => Assert.Contains(allRoles, r => r.Name == role));
 
         // Act again (idempotency check - calling twice should not duplicate roles)
         await RoleSeeder.SeedRolesAsync(roleManager);
         var rolesAfterSecondRun = await context.Roles.ToListAsync();
-        Assert.Equal(4, rolesAfterSecondRun.Count);
+        Assert.Equal(2, rolesAfterSecondRun.Count);
     }
 
     [Fact]
@@ -115,10 +111,10 @@ public class IdentityTests : IDisposable
             LastName = "Bednarski"
         };
 
-        var role = new IdentityRole<Guid>(UserRoles.Organizer)
+        var role = new IdentityRole<Guid>(UserRoles.User)
         {
             Id = Guid.NewGuid(),
-            NormalizedName = UserRoles.Organizer.ToUpperInvariant()
+            NormalizedName = UserRoles.User.ToUpperInvariant()
         };
 
         var userRole = new IdentityUserRole<Guid>
@@ -146,7 +142,7 @@ public class IdentityTests : IDisposable
             Assert.NotNull(savedUser);
             Assert.Equal("organizator1", savedUser.UserName);
             Assert.NotNull(savedRole);
-            Assert.Equal(UserRoles.Organizer, savedRole.Name);
+            Assert.Equal(UserRoles.User, savedRole.Name);
             Assert.NotNull(savedUserRole);
         }
     }

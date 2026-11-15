@@ -32,7 +32,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Register_AssignsDefaultSpectatorRoleOnly()
+    public async Task Register_AssignsDefaultUserRoleOnly()
     {
         // Arrange
         var request = new RegisterRequest($"role_{Guid.NewGuid()}@test.com", "StrongPassword123!");
@@ -43,7 +43,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         // Assert
         var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
         Assert.NotNull(authResponse);
-        Assert.Equal(new[] { Roles.Fan }, authResponse.Roles);
+        Assert.Equal(new[] { Roles.User }, authResponse.Roles);
     }
 
     [Fact]

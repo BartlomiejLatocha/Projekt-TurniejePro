@@ -24,18 +24,18 @@ public class TeamStatusIntegrationTests : IClassFixture<CustomWebApplicationFact
 
     // Ten sam organizator tworzy turniej i decyduje o zgłoszeniach: zgłoszenia może rozpatrywać tylko organizator turnieju
     private readonly Guid _organizerId = Guid.NewGuid();
+    private readonly Guid _otherUserId = Guid.NewGuid();
 
-    private void AuthenticateAs(string role)
+    private void AuthenticateAs(Guid userId)
     {
-        var userId = role == Roles.Organizer ? _organizerId : Guid.NewGuid();
-        var token = _tokenService.CreateToken(userId, "user@example.com", new[] { role }).AccessToken;
+        var token = _tokenService.CreateToken(userId, "user@example.com", new[] { Roles.User }).AccessToken;
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     private async Task<(Guid tournamentId, Guid teamId)> SetupTournamentAndTeamAsync()
     {
         // 1. Stwórz turniej jako Organizator
-        AuthenticateAs(Roles.Organizer);
+        AuthenticateAs(_organizerId);
         var createTournamentReq = new CreateTournamentRequest(
             Name: $"Turniej Status {Guid.NewGuid().ToString()[..8]}",
             Discipline: "Siatkówka",
@@ -47,7 +47,7 @@ public class TeamStatusIntegrationTests : IClassFixture<CustomWebApplicationFact
         var tournament = await tourRes.Content.ReadFromJsonAsync<TournamentDetailsResponse>();
 
         // 2. Zgłoś drużynę jako Kapitan
-        AuthenticateAs(Roles.Captain);
+        AuthenticateAs(_otherUserId);
         var createTeamReq = new CreateTeamRequest(
             TournamentId: tournament!.Id,
             Name: "Team Test Status",
@@ -65,7 +65,7 @@ public class TeamStatusIntegrationTests : IClassFixture<CustomWebApplicationFact
     {
         // Arrange
         var (_, teamId) = await SetupTournamentAndTeamAsync();
-        AuthenticateAs(Roles.Organizer);
+        AuthenticateAs(_organizerId);
 
         // Act
         var response = await _client.PatchAsync($"/api/v1/teams/{teamId}/accept", null);
@@ -83,7 +83,7 @@ public class TeamStatusIntegrationTests : IClassFixture<CustomWebApplicationFact
     {
         // Arrange
         var (_, teamId) = await SetupTournamentAndTeamAsync();
-        AuthenticateAs(Roles.Captain); // Kapitan nie ma uprawnień do decyzji Organizatora
+        AuthenticateAs(_otherUserId); // Kapitan nie ma uprawnień do decyzji Organizatora
 
         // Act
         var response = await _client.PatchAsync($"/api/v1/teams/{teamId}/accept", null);
@@ -97,7 +97,7 @@ public class TeamStatusIntegrationTests : IClassFixture<CustomWebApplicationFact
     {
         // Arrange
         var (_, teamId) = await SetupTournamentAndTeamAsync();
-        AuthenticateAs(Roles.Organizer);
+        AuthenticateAs(_organizerId);
 
         // Act
         var response = await _client.PatchAsync($"/api/v1/teams/{teamId}/reject", null);
