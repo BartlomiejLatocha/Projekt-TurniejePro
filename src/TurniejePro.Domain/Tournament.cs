@@ -75,7 +75,13 @@ public class Tournament
         IsStarted = true;
     }
 
-    public bool CanRegisterTeam() => !IsStarted && Teams.Count < MaxTeams;
+    /// <summary>
+    /// Liczba zgłoszeń zajmujących miejsce w limicie drużyn: oczekujących i zaakceptowanych. Odrzucone zgłoszenie
+    /// zwalnia miejsce, więc się nie liczy.
+    /// </summary>
+    public int ActiveTeamsCount => Teams.Count(team => team.Status != TeamRegistrationStatus.Rejected);
+
+    public bool CanRegisterTeam() => !IsStarted && ActiveTeamsCount < MaxTeams;
 
     /// <summary>
     /// Zwraca powód, dla którego turniej nie przyjmuje zgłoszeń w podanej chwili, albo null, gdy zgłoszenia są otwarte.
@@ -130,7 +136,7 @@ public class Tournament
             throw new ArgumentOutOfRangeException(nameof(maxTeams), "Turniej musi dopuszczać co najmniej 2 drużyny.");
         }
 
-        if (maxTeams < Teams.Count)
+        if (maxTeams < ActiveTeamsCount)
         {
             throw new BusinessRuleException("Limit drużyn nie może być mniejszy niż liczba już zarejestrowanych drużyn.");
         }
