@@ -129,9 +129,9 @@ Zasady:
 |---|---|---|
 | Start turnieju | turniej został rozpoczęty | Turniej został już rozpoczęty. |
 | Termin | chwila zgłoszenia nie jest wcześniejsza niż termin rozpoczęcia turnieju (`startsAt`) | Upłynął termin zgłoszeń (termin rozpoczęcia turnieju). |
-| Limit | liczba zgłoszonych drużyn osiągnęła `maxTeams` | Osiągnięto maksymalny limit zarejestrowanych drużyn (N). |
+| Limit | liczba zgłoszeń zajmujących miejsce (oczekujących i zaakceptowanych) osiągnęła `maxTeams` | Osiągnięto maksymalny limit zarejestrowanych drużyn (N). |
 
-Osobnego terminu zgłoszeń nie ma: zgłoszenia przyjmowane są do chwili rozpoczęcia turnieju. Do limitu liczą się wszystkie zgłoszone drużyny, także oczekujące i odrzucone.
+Osobnego terminu zgłoszeń nie ma: zgłoszenia przyjmowane są do chwili rozpoczęcia turnieju. Do limitu liczą się zgłoszenia oczekujące i zaakceptowane (`Tournament.ActiveTeamsCount`). **Odrzucone zgłoszenie zwalnia miejsce**, więc po odrzuceniu drużyny w pełnym turnieju można zgłosić kolejną. Tę samą liczbę sprawdza zmiana limitu w `PUT /api/v1/tournaments/{id}`: nowy limit nie może być mniejszy niż liczba zgłoszeń oczekujących i zaakceptowanych.
 
 ## Wzorzec: jak wygląda DTO
 
