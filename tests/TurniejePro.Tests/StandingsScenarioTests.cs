@@ -146,7 +146,10 @@ public class StandingsScenarioTests
 
         var draws = matches.Count(match => match.HomeScore == match.AwayScore);
         var decisive = matches.Count - draws;
-        Assert.Equal((decisive * StandingsCalculator.PointsForWin) + (draws * 2 * StandingsCalculator.PointsForDraw), rows.Sum(row => row.Points));
+        var rules = ScoringRules.Default;
+        Assert.Equal(
+            (decisive * (rules.PointsForWin + rules.PointsForLoss)) + (draws * 2 * rules.PointsForDraw),
+            rows.Sum(row => row.Points));
     }
 
     [Theory]
