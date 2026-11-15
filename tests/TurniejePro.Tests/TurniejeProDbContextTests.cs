@@ -125,4 +125,28 @@ public class TurniejeProDbContextTests : IDisposable
         // Act & Assert
         await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
     }
+
+    [Fact]
+    public async Task CanPersistAndRetrieveTournamentScoringRules()
+    {
+        var rules = new ScoringRules(2, 0, 1, false);
+        var tournament = new Tournament("Turniej Koszykówki", "Koszykówka", TournamentFormat.League, DateTimeOffset.UtcNow, 8, null, rules);
+
+        await using (var context = new TurniejeProDbContext(_options))
+        {
+            context.Tournaments.Add(tournament);
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = new TurniejeProDbContext(_options))
+        {
+            var saved = await context.Tournaments.FirstOrDefaultAsync(t => t.Id == tournament.Id);
+
+            Assert.NotNull(saved);
+            Assert.Equal(2, saved.ScoringRules.PointsForWin);
+            Assert.Equal(0, saved.ScoringRules.PointsForDraw);
+            Assert.Equal(1, saved.ScoringRules.PointsForLoss);
+            Assert.False(saved.ScoringRules.AllowDraws);
+        }
+    }
 }

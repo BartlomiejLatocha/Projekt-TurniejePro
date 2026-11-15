@@ -507,6 +507,41 @@ namespace TurniejePro.Data.Migrations
                     b.Navigation("Tournament");
                 });
 
+            modelBuilder.Entity("TurniejePro.Domain.Tournament", b =>
+                {
+                    b.OwnsOne("TurniejePro.Domain.ScoringRules", "ScoringRules", b1 =>
+                        {
+                            b1.Property<Guid>("TournamentId")
+                                .HasColumnType("TEXT");
+
+                            b1.Property<bool>("AllowDraws")
+                                .HasColumnType("INTEGER")
+                                .HasDefaultValue(true);
+
+                            b1.Property<int>("PointsForDraw")
+                                .HasColumnType("INTEGER")
+                                .HasDefaultValue(1);
+
+                            b1.Property<int>("PointsForLoss")
+                                .HasColumnType("INTEGER")
+                                .HasDefaultValue(0);
+
+                            b1.Property<int>("PointsForWin")
+                                .HasColumnType("INTEGER")
+                                .HasDefaultValue(3);
+
+                            b1.HasKey("TournamentId");
+
+                            b1.ToTable("Tournaments");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TournamentId");
+                        });
+
+                    b.Navigation("ScoringRules")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TurniejePro.Domain.Team", b =>
                 {
                     b.Navigation("Players");
