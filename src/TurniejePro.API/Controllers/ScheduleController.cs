@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using TurniejePro.Api.Auth;
 using TurniejePro.Api.Mapping;
 using TurniejePro.Contracts.Matches;
@@ -25,7 +26,8 @@ public class ScheduleController : ControllerBase
     }
 
     /// <summary>
-    /// Generuje i zapisuje terminarz turnieju (ligowy lub pucharowy).
+    /// Generuje i zapisuje terminarz turnieju (ligowy lub pucharowy). Body jest opcjonalne i wybiera rozstawienie
+    /// drużyn: kolejność zgłoszeń (domyślnie), losowanie albo kolejność podana ręcznie.
     /// </summary>
     [HttpPost]
     [Authorize]
@@ -37,6 +39,7 @@ public class ScheduleController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ScheduleResponse>> GenerateSchedule(
         Guid tournamentId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] GenerateScheduleRequest? request,
         CancellationToken cancellationToken)
     {
         var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken);
@@ -55,7 +58,7 @@ public class ScheduleController : ControllerBase
         }
 
         // Terminarz już istnieje (409) i za mało drużyn (400) zgłasza ScheduleService; obsługuje je globalny handler
-        var matches = await _scheduleService.GenerateScheduleAsync(tournamentId, cancellationToken);
+        var matches = await _scheduleService.GenerateScheduleAsync(tournamentId, request.ToSeeding(), cancellationToken);
 
         var contractFormat = (TournamentFormat)tournament.Format;
         var response = matches.ToScheduleResponse(tournamentId, contractFormat);
