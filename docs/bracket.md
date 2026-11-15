@@ -36,9 +36,19 @@ Trzy drużyny A–C: runda 1: A (wolny los), B–C, a finał A–? czeka na zwyc
 - Ponowne wskazanie tego samego zwycięzcy nic nie zmienia.
 - **Korekta wyniku:** zwycięzcę można zmienić, dopóki następny mecz nie został rozstrzygnięty. Wtedy nowy zwycięzca zastępuje starego w następnym meczu. Po rozstrzygnięciu następnego meczu korekta kończy się `InvalidOperationException`, bo zmieniłaby przebieg dalszych meczów.
 
+### Jedna implementacja awansu
+
+Reguła awansu istnieje tylko raz i dwa miejsca z niej korzystają:
+
+- **`KnockoutBracketAdvancer.GetNextSlot(round, position)`** wskazuje, dokąd trafia zwycięzca (następna runda, pozycja `ceil(p / 2)`, gospodarz dla pozycji nieparzystej). Używają jej `AdvanceWinner` i serwis wyników.
+- **`MatchResultService`** (zapis wyniku w API) nie liczy awansu sam. Buduje drabinkę z meczów w bazie (`MatchBracketMapper.ToBracket`), awansuje zwycięzcę przez `AdvanceWinner` i przepisuje drużyny z powrotem do meczów (`MatchBracketMapper.ApplyTeams`). Własne kontrole serwisu zostają: `404` dla nieistniejącego turnieju lub meczu, `409` dla wolnego losu, meczu bez obu drużyn i następnego meczu już rozpoczętego oraz `400` dla remisu w pucharze.
+- Zwycięzca meczu zakończonego to drużyna z wyższym wynikiem, a przy wolnym losie gospodarz. Mecz bez wyniku lub zakończony remisem nie ma zwycięzcy.
+
 ## Testy
 
 `KnockoutBracketAdvancerTests` sprawdza awans (gospodarz i gość, wolne losy, korekty, błędy) oraz rozegranie całej drabinki dla 2–34, 64, 100 i 128 drużyn: przy wygrywającym zawsze wyżej rozstawionym mistrzem jest pierwsza drużyna, a przy naprzemiennych zwycięzcach każda drużyna oprócz mistrza przegrywa dokładnie raz.
+
+`KnockoutBracketNextSlotTests` sprawdza regułę `GetNextSlot`, `MatchBracketMapperTests` przekład meczów na drabinkę i z powrotem, a `MatchResultAdvancementConsistencyTests` rozgrywa całą drabinkę przez `MatchResultService` dla 2–34 i 64 drużyn i porównuje układ z wynikiem `KnockoutBracketAdvancer`.
 
 `KnockoutBracketGeneratorTests` pokrywa dokładny układ dla 2, 3, 4, 5 i 8 drużyn. `KnockoutBracketInvariantsTests` sprawdza własności drabinki dla 2–34 oraz 64, 100 i 128 drużyn (128 to limit turnieju), osobnym testem dla każdej: liczba rund i meczów, numeracja, liczba i adresaci wolnych losów, wpisanie drużyn z wolnym losem do drugiej rundy, `n - 1` meczów do rozegrania, wyżej rozstawiony jako gospodarz, rozdzielenie dwóch najwyżej rozstawionych oraz brak powtórzeń drużyn w rundzie. Nowy rozmiar dopisuje się w `AllTeamCounts`.
 

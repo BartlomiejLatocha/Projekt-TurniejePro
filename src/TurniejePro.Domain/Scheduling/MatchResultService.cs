@@ -57,13 +57,12 @@ public class MatchResultService
 
         Match? nextMatch = null;
 
-        // 6. Faza pucharowa: sprawdzenie meczu następnej rundy -> 409
+        // 6. Faza pucharowa: sprawdzenie meczu następnej rundy -> 409. Miejsce zwycięzcy wskazuje jedna reguła awansu.
         if (tournament.Format == TournamentFormat.Cup)
         {
-            var nextRound = match.Round + 1;
-            var nextPosition = (match.Position + 1) / 2;
+            var slot = KnockoutBracketAdvancer.GetNextSlot(match.Round, match.Position);
 
-            nextMatch = matches.FirstOrDefault(m => m.Round == nextRound && m.Position == nextPosition);
+            nextMatch = matches.FirstOrDefault(m => m.Round == slot.RoundNumber && m.Position == slot.Position);
 
             if (nextMatch is not null && nextMatch.Status != MatchStatus.Scheduled)
             {
@@ -71,22 +70,19 @@ public class MatchResultService
             }
         }
 
+        // Drabinka sprzed nowego wyniku: awans (także korekta wyniku) liczy KnockoutBracketAdvancer
+        var bracket = nextMatch is null ? null : MatchBracketMapper.ToBracket(matches);
+
         // Ustawienie wyniku meczu
         match.SetResult(homeScore, awayScore);
 
         // Awans zwycięzcy w drabince pucharowej
-        if (nextMatch is not null)
+        if (bracket is not null)
         {
             var winnerId = homeScore > awayScore ? match.HomeTeamId : match.AwayTeamId;
 
-            if (match.Position % 2 == 1)
-            {
-                nextMatch.HomeTeamId = winnerId; // Pozycja nieparzysta -> Gospodarz
-            }
-            else
-            {
-                nextMatch.AwayTeamId = winnerId; // Pozycja parzysta -> Gość
-            }
+            var advanced = KnockoutBracketAdvancer.AdvanceWinner(bracket, match.Round, match.Position, winnerId!.Value);
+            MatchBracketMapper.ApplyTeams(advanced, matches);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
