@@ -50,8 +50,8 @@ public static class KnockoutBracketAdvancer
             return updated;
         }
 
-        var nextPosition = (position + 1) / 2;
-        var nextMatch = FindMatch(rounds, roundNumber + 1, nextPosition);
+        var slot = GetNextSlot(roundNumber, position);
+        var nextMatch = FindMatch(rounds, slot.RoundNumber, slot.Position);
 
         if (nextMatch.WinnerId is not null)
         {
@@ -60,9 +60,24 @@ public static class KnockoutBracketAdvancer
 
         return ReplaceMatch(
             updated,
-            roundNumber + 1,
-            nextPosition,
-            current => position % 2 == 1 ? current with { HomeTeamId = winnerId } : current with { AwayTeamId = winnerId });
+            slot.RoundNumber,
+            slot.Position,
+            current => slot.IsHome ? current with { HomeTeamId = winnerId } : current with { AwayTeamId = winnerId });
+    }
+
+    /// <summary>
+    /// Wskazuje, dokąd trafia zwycięzca meczu: mecz <c>p</c> w rundzie <c>r</c> zasila mecz <c>ceil(p / 2)</c> w rundzie
+    /// <c>r + 1</c>, z pozycji nieparzystej jako gospodarz, z parzystej jako gość. To jedyne miejsce z tą regułą:
+    /// korzystają z niego zarówno <see cref="AdvanceWinner"/>, jak i serwis wyników meczów.
+    /// </summary>
+    /// <param name="roundNumber">Numer rundy meczu (od 1).</param>
+    /// <param name="position">Pozycja meczu w rundzie (od 1).</param>
+    public static BracketSlot GetNextSlot(int roundNumber, int position)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(roundNumber, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(position, 1);
+
+        return new BracketSlot(roundNumber + 1, (position + 1) / 2, IsHome: position % 2 == 1);
     }
 
     /// <summary>
