@@ -13,8 +13,24 @@ public class ScheduleService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<Match>> GenerateScheduleAsync(Guid tournamentId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Generuje terminarz z domyślnym rozstawieniem: stałą kolejnością zgłoszeń drużyn.
+    /// </summary>
+    public Task<IReadOnlyList<Match>> GenerateScheduleAsync(Guid tournamentId, CancellationToken cancellationToken = default) =>
+        GenerateScheduleAsync(tournamentId, ScheduleSeeding.Registration, cancellationToken);
+
+    /// <summary>
+    /// Generuje terminarz, rozstawiając zaakceptowane drużyny według <paramref name="seeding"/>: w kolejności zgłoszeń,
+    /// losowo albo ręcznie. W pucharze kolejność rozstawienia wyznacza pary pierwszej rundy i wolne losy, a w lidze
+    /// układ kolejek.
+    /// </summary>
+    public async Task<IReadOnlyList<Match>> GenerateScheduleAsync(
+        Guid tournamentId,
+        ScheduleSeeding seeding,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(seeding);
+
         // 1. Sprawdzenie, czy terminarz już istnieje
         var hasSchedule = await _unitOfWork.Matches.HasScheduleAsync(tournamentId, cancellationToken);
         if (hasSchedule)
@@ -40,7 +56,7 @@ public class ScheduleService
             throw new BusinessRuleException("Do wygenerowania terminarza wymagane są co najmniej 2 zaakceptowane drużyny.");
         }
 
-        var teamIds = acceptedTeams.Select(t => t.Id).ToList();
+        var teamIds = TeamSeeder.Seed(acceptedTeams, seeding.Mode, seeding.TeamOrder, seeding.RandomIndex);
         var createdMatches = new List<Match>();
 
         // 4. Generowanie meczów

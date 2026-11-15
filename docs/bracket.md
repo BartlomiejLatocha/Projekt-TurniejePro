@@ -10,6 +10,33 @@ Drabinkę (eliminacja po jednej porażce) generuje `KnockoutBracketGenerator.Gen
 - **Liczby:** liczba rund to `ceil(log2 n)`, a rozegranych meczów (bez wolnych losów) jest `n - 1`.
 - Miejsca w kolejnych rundach, na które jeszcze nikt nie awansował, mają `null` w `HomeTeamId` lub `AwayTeamId`. Zwycięzca meczu z pozycji nieparzystej trafia do następnej rundy jako gospodarz, z parzystej jako gość.
 
+## Rozstawienie drużyn przy generowaniu terminarza
+
+Generator drabinki dostaje drużyny już w kolejności rozstawienia. Tę kolejność ustala `TeamSeeder.Seed` (wywoływany przez `ScheduleService`) według wybranego trybu, a nie według tego, w jakiej kolejności baza zwróciła drużyny:
+
+| Tryb (`SeedingMode`) | Kolejność rozstawienia |
+|---|---|
+| `Registration` (domyślny, **stała kolejność**) | według czasu zgłoszenia drużyny (`RegisteredAt`), a przy identycznym czasie według identyfikatora. Najwcześniej zgłoszona drużyna jest rozstawiona najwyżej. |
+| `Random` (**losowanie**) | tasowanie Fishera-Yatesa kryptograficznym generatorem liczb losowych, zaczynając od kolejności zgłoszeń |
+| `Manual` (**ręczne**) | kolejność podana przez organizatora: dokładnie wszystkie zaakceptowane drużyny, każda raz |
+
+Rozstawienie dotyczy zaakceptowanych drużyn turnieju. W pucharze wyznacza pary pierwszej rundy i drużyny z wolnym losem, a w lidze (round-robin) układ kolejek.
+
+### API
+
+`POST /api/v1/tournaments/{id}/schedule` ma opcjonalne body (`GenerateScheduleRequest`). Bez body, z pustym obiektem `{}` albo bez pola `seeding` obowiązuje kolejność zgłoszeń, czyli to samo co dotąd, ale teraz z jawnie ustaloną kolejnością.
+
+```json
+{ "seeding": "Registration" }
+{ "seeding": "Random" }
+{ "seeding": "Manual", "teamOrder": ["<id drużyny 1>", "<id drużyny 2>", "..."] }
+```
+
+- `teamOrder` jest wymagane tylko przy `Manual` i ignorowane przy pozostałych trybach.
+- Błędy ręcznego rozstawienia dają `400` (`BusinessRuleException`): brak `teamOrder`, ta sama drużyna dwa razy, drużyna spoza zaakceptowanych w turnieju, brak którejś zaakceptowanej drużyny.
+- Nieznana wartość `seeding` (np. `"Banana"`, `99`, `0`) daje `400` (błąd walidacji).
+- Autoryzacja bez zmian: tylko organizator turnieju albo `Admin` (`403` dla pozostałych, `401` bez tokenu), a ponowne generowanie to `409`.
+
 ## Wymagania wejścia
 
 Co najmniej 2 drużyny, bez powtórzeń (inaczej `ArgumentException`), lista różna od `null`.
@@ -37,6 +64,8 @@ Trzy drużyny A–C: runda 1: A (wolny los), B–C, a finał A–? czeka na zwyc
 - **Korekta wyniku:** zwycięzcę można zmienić, dopóki następny mecz nie został rozstrzygnięty. Wtedy nowy zwycięzca zastępuje starego w następnym meczu. Po rozstrzygnięciu następnego meczu korekta kończy się `InvalidOperationException`, bo zmieniłaby przebieg dalszych meczów.
 
 ## Testy
+
+`TeamSeederTests` sprawdza każdy tryb rozstawienia (kolejność zgłoszeń niezależna od kolejności wejścia, losowanie z podmienionym generatorem, błędy ręcznego rozstawienia), `ScheduleSeedingTests` wpływ rozstawienia na pary pierwszej rundy i wolne losy, a `ScheduleSeedingIntegrationTests` to samo przez API razem z opcjonalnym body i błędnymi danymi.
 
 `KnockoutBracketAdvancerTests` sprawdza awans (gospodarz i gość, wolne losy, korekty, błędy) oraz rozegranie całej drabinki dla 2–34, 64, 100 i 128 drużyn: przy wygrywającym zawsze wyżej rozstawionym mistrzem jest pierwsza drużyna, a przy naprzemiennych zwycięzcach każda drużyna oprócz mistrza przegrywa dokładnie raz.
 
