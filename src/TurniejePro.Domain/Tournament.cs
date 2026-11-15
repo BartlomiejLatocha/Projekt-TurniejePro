@@ -13,6 +13,7 @@ public class Tournament
     public int MaxTeams { get; set; } = 16;
     public bool IsStarted { get; private set; }
     public Guid? OrganizerId { get; set; }
+    public ScoringRules ScoringRules { get; private set; } = ScoringRules.DefaultCup;
 
     public ICollection<Team> Teams { get; set; } = new List<Team>();
     public ICollection<Match> Matches { get; set; } = new List<Match>();
@@ -31,6 +32,7 @@ public class Tournament
         StartsAt = DateTimeOffset.UtcNow;
         MaxTeams = 16;
         IsStarted = false;
+        ScoringRules = ScoringRules.DefaultFor(Format);
     }
 
     public Tournament(
@@ -39,7 +41,8 @@ public class Tournament
         TournamentFormat format,
         DateTimeOffset startsAt,
         int maxTeams,
-        Guid? organizerId = null)
+        Guid? organizerId = null,
+        ScoringRules? scoringRules = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -59,6 +62,7 @@ public class Tournament
         MaxTeams = maxTeams;
         OrganizerId = organizerId;
         IsStarted = false;
+        ScoringRules = scoringRules ?? ScoringRules.DefaultFor(format);
     }
 
     public void Start()
@@ -103,7 +107,8 @@ public class Tournament
         string discipline,
         TournamentFormat format,
         DateTimeOffset startsAt,
-        int maxTeams)
+        int maxTeams,
+        ScoringRules? scoringRules = null)
     {
         if (IsStarted)
         {
@@ -130,10 +135,31 @@ public class Tournament
             throw new BusinessRuleException("Limit drużyn nie może być mniejszy niż liczba już zarejestrowanych drużyn.");
         }
 
+        if (scoringRules is not null)
+        {
+            ScoringRules = scoringRules;
+        }
+        else if (Format != format)
+        {
+            ScoringRules = ScoringRules.DefaultFor(format);
+        }
+
         Name = name;
         Discipline = discipline;
         Format = format;
         StartsAt = startsAt;
         MaxTeams = maxTeams;
+    }
+
+    public void UpdateScoringRules(ScoringRules scoringRules)
+    {
+        ArgumentNullException.ThrowIfNull(scoringRules);
+
+        if (IsStarted)
+        {
+            throw new BusinessRuleException("Nie można modyfikować rozpoczętego turnieju.");
+        }
+
+        ScoringRules = scoringRules;
     }
 }

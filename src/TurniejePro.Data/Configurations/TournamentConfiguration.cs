@@ -30,6 +30,30 @@ public class TournamentConfiguration : IEntityTypeConfiguration<Tournament>
         builder.Property(t => t.IsStarted)
             .IsRequired();
 
+        builder.OwnsOne(t => t.ScoringRules, sr =>
+        {
+            sr.Property(s => s.PointsForWin)
+                .IsRequired()
+                .HasDefaultValue(3)
+                .ValueGeneratedNever();
+
+            sr.Property(s => s.PointsForDraw)
+                .IsRequired()
+                .HasDefaultValue(1)
+                .ValueGeneratedNever();
+
+            sr.Property(s => s.PointsForLoss)
+                .IsRequired()
+                .HasDefaultValue(0)
+                .ValueGeneratedNever();
+
+            sr.Property(s => s.AllowDraws)
+                .IsRequired()
+                .HasDefaultValue(true)
+                .ValueGeneratedNever();
+        });
+        builder.Navigation(t => t.ScoringRules).IsRequired();
+
         builder.HasMany(t => t.Teams)
             .WithOne(tm => tm.Tournament)
             .HasForeignKey(tm => tm.TournamentId)

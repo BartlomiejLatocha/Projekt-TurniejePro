@@ -223,4 +223,82 @@ public class TournamentTests
 
         Assert.Equal(2, tournament.MaxTeams);
     }
+
+    [Fact]
+    public void ScoringRules_DefaultForFormat_SetsExpectedValues()
+    {
+        var leagueTournament = new Tournament("Liga", "Piłka nożna", TournamentFormat.League, DateTimeOffset.UtcNow, 8);
+        var cupTournament = new Tournament("Puchar", "Piłka nożna", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8);
+
+        Assert.Equal(new ScoringRules(3, 1, 0, true), leagueTournament.ScoringRules);
+        Assert.Equal(new ScoringRules(3, 1, 0, false), cupTournament.ScoringRules);
+        Assert.Equal(new ScoringRules(3, 1, 0, true), ScoringRules.Default);
+        Assert.Equal(new ScoringRules(3, 1, 0, true), ScoringRules.DefaultLeague);
+        Assert.Equal(new ScoringRules(3, 1, 0, false), ScoringRules.DefaultCup);
+    }
+
+    [Fact]
+    public void FullConstructor_WithCustomScoringRules_SetsScoringRules()
+    {
+        var customRules = new ScoringRules(2, 0, 1, false);
+
+        var tournament = new Tournament(
+            "Koszykówka Liga",
+            "Koszykówka",
+            TournamentFormat.League,
+            DateTimeOffset.UtcNow,
+            8,
+            null,
+            customRules);
+
+        Assert.Equal(customRules, tournament.ScoringRules);
+    }
+
+    [Theory]
+    [InlineData(-1, 1, 0)]
+    [InlineData(3, -1, 0)]
+    [InlineData(3, 1, -1)]
+    public void ScoringRules_NegativePoints_ThrowsArgumentOutOfRangeException(int win, int draw, int loss)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ScoringRules(win, draw, loss));
+    }
+
+    [Fact]
+    public void UpdateScoringRules_WhenNotStarted_UpdatesScoringRules()
+    {
+        var tournament = new Tournament("Liga", "Siatkówka", TournamentFormat.League, DateTimeOffset.UtcNow, 8);
+        var newRules = new ScoringRules(2, 0, 1, false);
+
+        tournament.UpdateScoringRules(newRules);
+
+        Assert.Equal(newRules, tournament.ScoringRules);
+    }
+
+    [Fact]
+    public void UpdateScoringRules_WhenStarted_ThrowsBusinessRuleException()
+    {
+        var tournament = new Tournament("Liga", "Siatkówka", TournamentFormat.League, DateTimeOffset.UtcNow, 8);
+        tournament.Start();
+
+        Assert.Throws<BusinessRuleException>(() => tournament.UpdateScoringRules(new ScoringRules(2, 0, 1, false)));
+    }
+
+    [Fact]
+    public void UpdateScoringRules_Null_ThrowsArgumentNullException()
+    {
+        var tournament = new Tournament("Liga");
+
+        Assert.Throws<ArgumentNullException>(() => tournament.UpdateScoringRules(null!));
+    }
+
+    [Fact]
+    public void UpdateDetails_WithCustomScoringRules_UpdatesScoringRules()
+    {
+        var tournament = new Tournament("Turniej", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8);
+        var customRules = new ScoringRules(5, 2, 1, true);
+
+        tournament.UpdateDetails("Turniej", "FIFA", TournamentFormat.League, DateTimeOffset.UtcNow, 8, customRules);
+
+        Assert.Equal(customRules, tournament.ScoringRules);
+    }
 }
