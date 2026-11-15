@@ -93,7 +93,7 @@ public class TeamsController : ControllerBase
     /// Akceptuje zgłoszenie drużyny (Wymaga polityki AcceptApplications).
     /// </summary>
     [HttpPatch("{id:guid}/accept")]
-    [Authorize(Policy = Policies.AcceptApplications)]
+    [Authorize]
     [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -178,7 +178,7 @@ public class TeamsController : ControllerBase
     /// Odrzuca zgłoszenie drużyny (Wymaga polityki AcceptApplications).
     /// </summary>
     [HttpPatch("{id:guid}/reject")]
-    [Authorize(Policy = Policies.AcceptApplications)]
+    [Authorize]
     [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

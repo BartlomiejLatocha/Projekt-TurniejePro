@@ -32,7 +32,7 @@ public class DatabaseInitializerTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
         Assert.NotNull(auth);
-        Assert.Contains(Roles.Organizer, auth.Roles);
+        Assert.Contains(Roles.User, auth.Roles);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class DatabaseInitializerTests
         Assert.Equal(DevSeedResult.AlreadyExists, second);
         var user = await userManager.FindByEmailAsync(SeedEmail);
         Assert.NotNull(user);
-        Assert.True(await userManager.IsInRoleAsync(user, Roles.Organizer));
+        Assert.True(await userManager.IsInRoleAsync(user, Roles.User));
     }
 
     [Theory]

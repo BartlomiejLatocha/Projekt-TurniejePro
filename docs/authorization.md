@@ -227,8 +227,8 @@ Na dzień przyjęcia dokumentu kod realizuje jeszcze stary model ról globalnych
 | Element | Stan w kodzie | Zadanie |
 |---|---|---|
 | Polityka domyślna (wymagane logowanie) i publiczny podgląd | zrobione | — |
-| Role `User` i `Admin` zamiast `Organizer`/`Participant`/`Spectator`; tworzenie turnieju i zgłaszanie drużyny dla każdego zalogowanego | do zrobienia | TA-14.2.2 |
-| Polityka `ManageTournament` (`TournamentOrganizerHandler`) w edycji i usuwaniu turnieju, akceptacji i odrzucaniu zgłoszeń, generowaniu i usuwaniu terminarza oraz wpisywaniu wyników | zrobione; atrybuty z rolami globalnymi zostają do czasu TA-14.2.2 | TA-14.2.1 (KAN-283) |
+| Role `User` i `Admin` zamiast `Organizer`/`Participant`/`Spectator`; tworzenie turnieju i zgłaszanie drużyny dla każdego zalogowanego | zrobione | TA-14.2.2 (KAN-284) |
+| Polityka `ManageTournament` (`TournamentOrganizerHandler`) w edycji i usuwaniu turnieju, akceptacji i odrzucaniu zgłoszeń, generowaniu i usuwaniu terminarza oraz wpisywaniu wyników | zrobione | TA-14.2.1 (KAN-283) |
 | Polityka `ManageTeam` dla drużyn | do zrobienia, razem z edycją drużyny | — |
 | `EnterResults` jako osobna polityka zasobowa: wynik wpisuje tylko organizator turnieju lub admin, kapitan nie | zrobione | TA-14.2.3 (KAN-285) |
 | Testy 401/403 dla cudzych zasobów | do zrobienia | TA-14.2.4 |

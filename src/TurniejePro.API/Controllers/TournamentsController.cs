@@ -74,11 +74,10 @@ public class TournamentsController : ControllerBase
     /// Tworzy nowy turniej (wymaga roli Organizatora).
     /// </summary>
     [HttpPost]
-    [Authorize(Policy = Policies.ManageTournaments)]
+    [Authorize(Policy = Policies.CreateTournament)]
     [ProducesResponseType(typeof(TournamentDetailsResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Create([FromBody] CreateTournamentRequest request, CancellationToken cancellationToken)
     {
         Guid? organizerId = null;
@@ -109,7 +108,7 @@ public class TournamentsController : ControllerBase
     /// Aktualizuje istniejący turniej.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = Policies.ManageTournaments)]
+    [Authorize]
     [ProducesResponseType(typeof(TournamentDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -154,7 +153,7 @@ public class TournamentsController : ControllerBase
     /// Usuwa turniej z systemu.
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = Policies.ManageTournaments)]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

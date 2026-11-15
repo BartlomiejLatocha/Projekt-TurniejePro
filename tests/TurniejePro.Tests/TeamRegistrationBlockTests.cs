@@ -26,7 +26,7 @@ public class TeamRegistrationBlockTests : IClassFixture<CustomWebApplicationFact
         _factory = factory;
         _client = factory.CreateClient();
         _client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", new TestTokens(factory.Services).ForRoles(Roles.Captain));
+            new AuthenticationHeaderValue("Bearer", new TestTokens(factory.Services).ForRoles(Roles.User));
     }
 
     [Fact]

@@ -54,9 +54,8 @@ public static class JwtAuthenticationExtensions
             .SetFallbackPolicy(new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .Build())
-            .AddPolicy(Policies.ManageTournaments, p => p.RequireRole(Roles.Organizer, Roles.Admin))
-            .AddPolicy(Policies.AcceptApplications, p => p.RequireRole(Roles.Organizer, Roles.Admin))
-            .AddPolicy(Policies.RegisterTeam, p => p.RequireRole(Roles.Organizer, Roles.Captain))
+            .AddPolicy(Policies.CreateTournament, p => p.RequireAuthenticatedUser())
+            .AddPolicy(Policies.RegisterTeam, p => p.RequireAuthenticatedUser())
             .AddPolicy(Policies.ManageTournament, p => p
                 .RequireAuthenticatedUser()
                 .AddRequirements(new TournamentOrganizerRequirement()))

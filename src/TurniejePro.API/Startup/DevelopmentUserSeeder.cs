@@ -63,7 +63,7 @@ public static partial class DevelopmentUserSeeder
             return DevSeedResult.Failed;
         }
 
-        var roleAdded = await userManager.AddToRoleAsync(user, Roles.Organizer);
+        var roleAdded = await userManager.AddToRoleAsync(user, Roles.User);
         if (!roleAdded.Succeeded)
         {
             LogFailed(logger, email, Describe(roleAdded));

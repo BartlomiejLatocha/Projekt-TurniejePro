@@ -8,17 +8,13 @@ namespace TurniejePro.Tests.Controllers;
 [Route("api/test-auth")]
 public class TestAuthorizationController : ControllerBase
 {
-    [HttpGet("organizer-only")]
-    [Authorize(Policy = Policies.ManageTournaments)]
-    public IActionResult OrganizerOnly() => Ok("Dostęp przyznany dla Organizatora");
+    [HttpGet("create-tournament")]
+    [Authorize(Policy = Policies.CreateTournament)]
+    public IActionResult CreateTournament() => Ok("Dostęp przyznany każdemu zalogowanemu (tworzenie turnieju)");
 
-    [HttpGet("captain-or-organizer")]
+    [HttpGet("register-team")]
     [Authorize(Policy = Policies.RegisterTeam)]
-    public IActionResult CaptainOrOrganizer() => Ok("Dostęp przyznany dla Kapitana lub Organizatora");
-
-    [HttpGet("accept-applications")]
-    [Authorize(Policy = Policies.AcceptApplications)]
-    public IActionResult AcceptApplications() => Ok("Dostęp przyznany dla Organizatora (zgłoszenia)");
+    public IActionResult RegisterTeam() => Ok("Dostęp przyznany każdemu zalogowanemu (zgłoszenie drużyny)");
 
     // EnterResults jest polityką zasobową (KAN-285): sprawdza ją prawdziwy endpoint wyników po wczytaniu turnieju,
     // więc nie ma tu endpointu testowego. Zobacz TournamentOwnershipIntegrationTests.

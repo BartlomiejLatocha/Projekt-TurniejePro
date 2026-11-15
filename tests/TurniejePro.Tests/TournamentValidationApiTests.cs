@@ -20,7 +20,7 @@ public class TournamentValidationApiTests : IClassFixture<CustomWebApplicationFa
     {
         _client = factory.CreateClient();
         _client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", new TestTokens(factory.Services).ForRoles(Roles.Organizer));
+            new AuthenticationHeaderValue("Bearer", new TestTokens(factory.Services).ForRoles(Roles.User));
     }
 
     [Fact]

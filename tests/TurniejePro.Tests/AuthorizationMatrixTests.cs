@@ -17,7 +17,8 @@ namespace TurniejePro.Tests;
 public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactory>
 {
     public const string CreateTournament = "/api/v1/tournaments";
-    public const string OrganizerOnly = "/api/test-auth/organizer-only";
+    public const string CreateTournamentPolicyEndpoint = "/api/test-auth/create-tournament";
+    public const string RegisterTeamPolicyEndpoint = "/api/test-auth/register-team";
     public const string NoAttributes = "/api/test-auth/no-attributes";
 
     private readonly HttpClient _client;
@@ -37,25 +38,19 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
             var data = new TheoryData<string, string, string?, HttpStatusCode>();
 
             // Endpointy publiczne ([AllowAnonymous])
-            AddEndpoint(data, "GET", "/api/v1/health", anonymous: OK, fan: OK, captain: OK, organizer: OK);
-            AddEndpoint(data, "GET", "/api/v1/tournaments", anonymous: OK, fan: OK, captain: OK, organizer: OK);
-            AddEndpoint(data, "GET", $"/api/v1/tournaments/{Guid.Empty}", anonymous: OK, fan: OK, captain: OK, organizer: OK);
+            AddEndpoint(data, "GET", "/api/v1/health", anonymous: OK, user: OK, admin: OK);
+            AddEndpoint(data, "GET", "/api/v1/tournaments", anonymous: OK, user: OK, admin: OK);
+            AddEndpoint(data, "GET", $"/api/v1/tournaments/{Guid.Empty}", anonymous: OK, user: OK, admin: OK);
 
             // Wymagane samo zalogowanie ([Authorize] bez polityki)
-            AddEndpoint(data, "GET", "/api/v1/auth/me", anonymous: Unauthorized, fan: OK, captain: OK, organizer: OK);
+            AddEndpoint(data, "GET", "/api/v1/auth/me", anonymous: Unauthorized, user: OK, admin: OK);
 
-            // Polityka ManageTournaments: tylko organizator
-            AddEndpoint(data, "POST", CreateTournament, anonymous: Unauthorized, fan: Forbidden, captain: Forbidden, organizer: Created);
-            AddEndpoint(data, "GET", OrganizerOnly, anonymous: Unauthorized, fan: Forbidden, captain: Forbidden, organizer: OK);
-
-            // Polityka AcceptApplications: tylko organizator
-            AddEndpoint(data, "GET", "/api/test-auth/accept-applications", anonymous: Unauthorized, fan: Forbidden, captain: Forbidden, organizer: OK);
-
-            // Polityka RegisterTeam: kapitan lub organizator
-            AddEndpoint(data, "GET", "/api/test-auth/captain-or-organizer", anonymous: Unauthorized, fan: Forbidden, captain: OK, organizer: OK);
+            AddEndpoint(data, "POST", CreateTournament, anonymous: Unauthorized, user: Created, admin: Created);
+            AddEndpoint(data, "GET", CreateTournamentPolicyEndpoint, anonymous: Unauthorized, user: OK, admin: OK);
+            AddEndpoint(data, "GET", RegisterTeamPolicyEndpoint, anonymous: Unauthorized, user: OK, admin: OK);
 
             // Brak atrybutów: działa polityka domyślna (wymagane logowanie), więc zapomniany atrybut nie otwiera luki
-            AddEndpoint(data, "GET", NoAttributes, anonymous: Unauthorized, fan: OK, captain: OK, organizer: OK);
+            AddEndpoint(data, "GET", NoAttributes, anonymous: Unauthorized, user: OK, admin: OK);
 
             return data;
         }
@@ -75,13 +70,13 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
         Assert.Equal(expected, status);
     }
 
-    // Poniższe testy sprawdzają samo uwierzytelnianie. Token ma rolę Organizer, żeby było widać, że 401
+    // Poniższe testy sprawdzają samo uwierzytelnianie. Token ma rolę User, żeby było widać, że 401
     // wynika z wadliwego tokenu, a nie z braku uprawnień.
 
     [Fact]
     public async Task MalformedToken_Returns401()
     {
-        var status = await GetStatusAsync("GET", OrganizerOnly, "to.nie.jest.token");
+        var status = await GetStatusAsync("GET", CreateTournamentPolicyEndpoint, "to.nie.jest.token");
 
         Assert.Equal(Unauthorized, status);
     }
@@ -89,7 +84,7 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
     [Fact]
     public async Task ExpiredToken_Returns401()
     {
-        var status = await GetStatusAsync("GET", OrganizerOnly, _tokens.Expired(Roles.Organizer));
+        var status = await GetStatusAsync("GET", CreateTournamentPolicyEndpoint, _tokens.Expired(Roles.User));
 
         Assert.Equal(Unauthorized, status);
     }
@@ -97,7 +92,7 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
     [Fact]
     public async Task TokenSignedWithWrongKey_Returns401()
     {
-        var status = await GetStatusAsync("GET", OrganizerOnly, _tokens.SignedWithWrongKey(Roles.Organizer));
+        var status = await GetStatusAsync("GET", CreateTournamentPolicyEndpoint, _tokens.SignedWithWrongKey(Roles.User));
 
         Assert.Equal(Unauthorized, status);
     }
@@ -105,7 +100,7 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
     [Fact]
     public async Task TokenWithWrongIssuer_Returns401()
     {
-        var status = await GetStatusAsync("GET", OrganizerOnly, _tokens.WithWrongIssuer(Roles.Organizer));
+        var status = await GetStatusAsync("GET", CreateTournamentPolicyEndpoint, _tokens.WithWrongIssuer(Roles.User));
 
         Assert.Equal(Unauthorized, status);
     }
@@ -113,17 +108,17 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
     [Fact]
     public async Task TokenWithWrongAudience_Returns401()
     {
-        var status = await GetStatusAsync("GET", OrganizerOnly, _tokens.WithWrongAudience(Roles.Organizer));
+        var status = await GetStatusAsync("GET", CreateTournamentPolicyEndpoint, _tokens.WithWrongAudience(Roles.User));
 
         Assert.Equal(Unauthorized, status);
     }
 
     [Fact]
-    public async Task ValidTokenWithoutRoles_OnRoleProtectedEndpoint_Returns403()
+    public async Task ValidTokenWithoutRoles_OnCreateTournamentEndpoint_Returns200()
     {
-        var status = await GetStatusAsync("GET", OrganizerOnly, _tokens.ForRoles());
+        var status = await GetStatusAsync("GET", CreateTournamentPolicyEndpoint, _tokens.ForRoles());
 
-        Assert.Equal(Forbidden, status);
+        Assert.Equal(OK, status);
     }
 
     [Fact]
@@ -135,9 +130,9 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
-    public async Task UserWithSeveralRoles_OneSufficientRoleIsEnough_Returns200()
+    public async Task UserWithSeveralRoles_Returns200()
     {
-        var status = await GetStatusAsync("GET", OrganizerOnly, _tokens.ForRoles(Roles.Fan, Roles.Organizer));
+        var status = await GetStatusAsync("GET", CreateTournamentPolicyEndpoint, _tokens.ForRoles(Roles.User, Roles.Admin));
 
         Assert.Equal(OK, status);
     }
@@ -147,14 +142,12 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
         string method,
         string path,
         HttpStatusCode anonymous,
-        HttpStatusCode fan,
-        HttpStatusCode captain,
-        HttpStatusCode organizer)
+        HttpStatusCode user,
+        HttpStatusCode admin)
     {
         data.Add(method, path, null, anonymous);
-        data.Add(method, path, Roles.Fan, fan);
-        data.Add(method, path, Roles.Captain, captain);
-        data.Add(method, path, Roles.Organizer, organizer);
+        data.Add(method, path, Roles.User, user);
+        data.Add(method, path, Roles.Admin, admin);
     }
 
     private static CreateTournamentRequest CreateValidTournament() =>

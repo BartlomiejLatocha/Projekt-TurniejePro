@@ -35,13 +35,13 @@ public class TournamentOwnershipIntegrationTests : IClassFixture<CustomWebApplic
         _tokenService = scope.ServiceProvider.GetRequiredService<ITokenService>();
     }
 
-    private string Owner => Token(_ownerId, Roles.Organizer);
+    private string Owner => Token(_ownerId, Roles.User);
 
-    private string OtherOrganizer => Token(Guid.NewGuid(), Roles.Organizer);
+    private string OtherOrganizer => Token(Guid.NewGuid(), Roles.User);
 
     private string Admin => Token(Guid.NewGuid(), Roles.Admin);
 
-    private string Captain => Token(Guid.NewGuid(), Roles.Captain);
+    private string Captain => Token(Guid.NewGuid(), Roles.User);
 
     // --- Edycja i usunięcie turnieju ---
 
@@ -218,7 +218,7 @@ public class TournamentOwnershipIntegrationTests : IClassFixture<CustomWebApplic
         var captainId = Guid.NewGuid();
         var (tournamentId, matchId) = await SeedTournamentWithMatchAsync(_ownerId, homeCaptainId: captainId);
 
-        var response = await SendAsync(HttpMethod.Put, ResultUrl(tournamentId, matchId), Token(captainId, Roles.Captain), new UpdateMatchResultRequest(3, 0));
+        var response = await SendAsync(HttpMethod.Put, ResultUrl(tournamentId, matchId), Token(captainId, Roles.User), new UpdateMatchResultRequest(3, 0));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Null(Load<Match>(matchId)!.HomeScore);
@@ -229,7 +229,7 @@ public class TournamentOwnershipIntegrationTests : IClassFixture<CustomWebApplic
     {
         var (tournamentId, matchId) = await SeedTournamentWithMatchAsync(_ownerId);
 
-        var response = await SendAsync(HttpMethod.Put, ResultUrl(tournamentId, matchId), Token(Guid.NewGuid(), Roles.Fan), new UpdateMatchResultRequest(2, 1));
+        var response = await SendAsync(HttpMethod.Put, ResultUrl(tournamentId, matchId), Token(Guid.NewGuid(), Roles.User), new UpdateMatchResultRequest(2, 1));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -244,11 +244,9 @@ public class TournamentOwnershipIntegrationTests : IClassFixture<CustomWebApplic
         async Task<bool> CanEnterResults(Guid userId, string role) =>
             (await authorization.AuthorizeAsync(Principal(userId, role), tournament, Policies.EnterResults)).Succeeded;
 
-        Assert.True(await CanEnterResults(_ownerId, Roles.Organizer));
+        Assert.True(await CanEnterResults(_ownerId, Roles.User));
         Assert.True(await CanEnterResults(Guid.NewGuid(), Roles.Admin));
-        Assert.False(await CanEnterResults(Guid.NewGuid(), Roles.Captain));
-        Assert.False(await CanEnterResults(Guid.NewGuid(), Roles.Organizer));
-        Assert.False(await CanEnterResults(Guid.NewGuid(), Roles.Fan));
+        Assert.False(await CanEnterResults(Guid.NewGuid(), Roles.User));
     }
 
     [Fact]

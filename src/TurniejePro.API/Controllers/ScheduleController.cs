@@ -28,7 +28,7 @@ public class ScheduleController : ControllerBase
     /// Generuje i zapisuje terminarz turnieju (ligowy lub pucharowy).
     /// </summary>
     [HttpPost]
-    [Authorize(Policy = Policies.AcceptApplications)]
+    [Authorize]
     [ProducesResponseType(typeof(ScheduleResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -100,7 +100,7 @@ public class ScheduleController : ControllerBase
     /// Usuwa terminarz powiązany z danym turniejem.
     /// </summary>
     [HttpDelete]
-    [Authorize(Policy = Policies.AcceptApplications)]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
