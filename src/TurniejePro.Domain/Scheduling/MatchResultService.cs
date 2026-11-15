@@ -49,10 +49,19 @@ public class MatchResultService
             throw new MatchResultConflictException("Obie drużyny muszą być wyznaczone, aby wprowadzić wynik meczu.");
         }
 
-        // 5. Remis w fazie pucharowej -> 400
-        if (tournament.Format == TournamentFormat.Cup && homeScore == awayScore)
+        // 5. Remis -> 400. W pucharze remisu nie ma, bo drabinka potrzebuje zwycięzcy, a w pozostałych turniejach remis
+        // może być wyłączony w zasadach punktacji (ScoringRules.AllowDraws).
+        if (homeScore == awayScore)
         {
-            throw new BusinessRuleException("W fazie pucharowej mecz nie może zakończyć się remisowo.");
+            if (tournament.Format == TournamentFormat.Cup)
+            {
+                throw new BusinessRuleException("W fazie pucharowej mecz nie może zakończyć się remisowo.");
+            }
+
+            if (!tournament.ScoringRules.AllowDraws)
+            {
+                throw new BusinessRuleException("Zasady punktacji tego turnieju nie dopuszczają remisów.");
+            }
         }
 
         Match? nextMatch = null;

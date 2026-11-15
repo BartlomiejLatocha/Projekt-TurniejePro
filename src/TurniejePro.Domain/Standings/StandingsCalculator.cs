@@ -3,37 +3,44 @@ using TurniejePro.Domain.Enums;
 namespace TurniejePro.Domain.Standings;
 
 /// <summary>
-/// Liczy tabelę ligową z rozegranych meczów. Tabela jest funkcją meczów, więc po poprawieniu wyniku wystarczy
-/// policzyć ją od nowa.
+/// Liczy tabelę ligową z rozegranych meczów według zasad punktacji turnieju (<see cref="ScoringRules"/>). Tabela jest
+/// funkcją meczów, więc po poprawieniu wyniku wystarczy policzyć ją od nowa.
 /// </summary>
 public static class StandingsCalculator
 {
-    /// <summary>Punkty za wygraną.</summary>
-    public const int PointsForWin = 3;
-
-    /// <summary>Punkty za remis.</summary>
-    public const int PointsForDraw = 1;
+    /// <summary>
+    /// Buduje tabelę z domyślną punktacją (<see cref="ScoringRules.Default"/>: wygrana 3, remis 1, porażka 0).
+    /// </summary>
+    /// <param name="teamIds">Drużyny w tabeli, bez powtórzeń. Kolejność służy tylko do uporządkowania remisów w pełni równych.</param>
+    /// <param name="matches">Mecze turnieju.</param>
+    public static IReadOnlyList<StandingsRow> Calculate(IReadOnlyList<Guid> teamIds, IEnumerable<Match> matches) =>
+        Calculate(teamIds, matches, ScoringRules.Default);
 
     /// <summary>
     /// Buduje tabelę dla podanych drużyn. Liczą się tylko zakończone mecze z wynikiem, w których grają dwie drużyny
     /// z tabeli. Pozostałe mecze (zaplanowane, w toku, odwołane, z nieznaną drużyną) są pomijane.
+    /// Punkty za wygraną, remis i porażkę pochodzą z <paramref name="scoringRules"/>. Remis zapisany w turnieju, który
+    /// remisów nie dopuszcza (<see cref="ScoringRules.AllowDraws"/> równe false), jest liczony jak każdy inny: tabela
+    /// pokazuje to, co jest w meczach, a remisom zapobiega walidacja przy wpisywaniu wyniku.
     /// Kolejność wierszy rozstrzygają kolejno: punkty, bilans bramek, bramki zdobyte, punkty z meczów bezpośrednich
-    /// pomiędzy drużynami remisującymi do tego miejsca, a na końcu kolejność drużyn na liście wejściowej.
-    /// Drużyny, których nie rozstrzygają żadne z tych zasad, mają to samo miejsce (np. 1, 1, 3).
+    /// pomiędzy drużynami remisującymi do tego miejsca (też według <paramref name="scoringRules"/>), a na końcu kolejność
+    /// drużyn na liście wejściowej. Drużyny, których nie rozstrzygają żadne z tych zasad, mają to samo miejsce (np. 1, 1, 3).
     /// </summary>
     /// <param name="teamIds">Drużyny w tabeli, bez powtórzeń. Kolejność służy tylko do uporządkowania remisów w pełni równych.</param>
     /// <param name="matches">Mecze turnieju.</param>
-    public static IReadOnlyList<StandingsRow> Calculate(IReadOnlyList<Guid> teamIds, IEnumerable<Match> matches)
+    /// <param name="scoringRules">Zasady punktacji turnieju.</param>
+    public static IReadOnlyList<StandingsRow> Calculate(IReadOnlyList<Guid> teamIds, IEnumerable<Match> matches, ScoringRules scoringRules)
     {
         ArgumentNullException.ThrowIfNull(teamIds);
         ArgumentNullException.ThrowIfNull(matches);
+        ArgumentNullException.ThrowIfNull(scoringRules);
 
         if (teamIds.Distinct().Count() != teamIds.Count)
         {
             throw new ArgumentException("Drużyny w tabeli nie mogą się powtarzać.", nameof(teamIds));
         }
 
-        var tallies = teamIds.ToDictionary(id => id, _ => new Tally());
+        var tallies = teamIds.ToDictionary(id => id, _ => new Tally(scoringRules));
         var counted = matches.Select(ToResult).OfType<MatchResult>().Where(result => tallies.ContainsKey(result.HomeTeamId) && tallies.ContainsKey(result.AwayTeamId)).ToList();
 
         foreach (var result in counted)
@@ -56,7 +63,7 @@ public static class StandingsCalculator
         foreach (var group in groups)
         {
             var members = group.Select(entry => entry.TeamId).ToHashSet();
-            var headToHead = group.ToDictionary(entry => entry.TeamId, entry => HeadToHeadPoints(entry.TeamId, members, counted));
+            var headToHead = group.ToDictionary(entry => entry.TeamId, entry => HeadToHeadPoints(entry.TeamId, members, counted, scoringRules));
 
             var previousHeadToHead = 0;
             var previousPlace = 0;
@@ -92,7 +99,7 @@ public static class StandingsCalculator
             : null;
 
     /// <summary>Punkty zdobyte przez drużynę wyłącznie w meczach z pozostałymi drużynami z grupy remisującej.</summary>
-    private static int HeadToHeadPoints(Guid teamId, HashSet<Guid> group, List<MatchResult> results)
+    private static int HeadToHeadPoints(Guid teamId, HashSet<Guid> group, List<MatchResult> results, ScoringRules scoringRules)
     {
         var points = 0;
 
@@ -100,23 +107,25 @@ public static class StandingsCalculator
         {
             if (result.HomeTeamId == teamId)
             {
-                points += PointsFor(result.HomeScore, result.AwayScore);
+                points += PointsFor(result.HomeScore, result.AwayScore, scoringRules);
             }
             else if (result.AwayTeamId == teamId)
             {
-                points += PointsFor(result.AwayScore, result.HomeScore);
+                points += PointsFor(result.AwayScore, result.HomeScore, scoringRules);
             }
         }
 
         return points;
     }
 
-    private static int PointsFor(int goalsFor, int goalsAgainst) =>
-        goalsFor > goalsAgainst ? PointsForWin : goalsFor == goalsAgainst ? PointsForDraw : 0;
+    private static int PointsFor(int goalsFor, int goalsAgainst, ScoringRules scoringRules) =>
+        goalsFor > goalsAgainst
+            ? scoringRules.PointsForWin
+            : goalsFor == goalsAgainst ? scoringRules.PointsForDraw : scoringRules.PointsForLoss;
 
     private sealed record MatchResult(Guid HomeTeamId, Guid AwayTeamId, int HomeScore, int AwayScore);
 
-    private sealed class Tally
+    private sealed class Tally(ScoringRules scoringRules)
     {
         public int Played { get; private set; }
 
@@ -130,7 +139,8 @@ public static class StandingsCalculator
 
         public int GoalsAgainst { get; private set; }
 
-        public int Points => (Won * PointsForWin) + (Drawn * PointsForDraw);
+        public int Points =>
+            (Won * scoringRules.PointsForWin) + (Drawn * scoringRules.PointsForDraw) + (Lost * scoringRules.PointsForLoss);
 
         public int GoalDifference => GoalsFor - GoalsAgainst;
 

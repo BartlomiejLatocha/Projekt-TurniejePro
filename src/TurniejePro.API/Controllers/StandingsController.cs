@@ -42,7 +42,7 @@ public class StandingsController : ControllerBase
 
         var matches = await _unitOfWork.Matches.GetByTournamentIdAsync(tournamentId, cancellationToken);
 
-        var rows = StandingsCalculator.Calculate(teams.Select(t => t.Id).ToList(), matches);
+        var rows = StandingsCalculator.Calculate(teams.Select(t => t.Id).ToList(), matches, tournament.ScoringRules);
         var names = teams.ToDictionary(t => t.Id, t => t.Name);
 
         var response = new StandingsResponse(
