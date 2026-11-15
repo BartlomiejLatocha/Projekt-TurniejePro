@@ -216,6 +216,7 @@ Endpointy podglądu są publiczne, więc nie mogą zwracać danych kontaktowych.
 
 - Pełna macierz „endpoint × użytkownik × oczekiwany kod” jest w `tests/TurniejePro.Tests/AuthorizationMatrixTests.cs`. Zmiana macierzy w tym dokumencie oznacza zmianę testów.
 - Po wprowadzeniu własności zasobów kolumny macierzy testów to: brak tokenu / zalogowany obcy / kapitan tej drużyny / organizator tego turnieju / `Admin` (zadanie TA-14.2.4). Każdy test zasobowy potrzebuje turnieju z ustawionym `OrganizerId` i drużyny z ustawionym `CaptainId`.
+- Macierz dla endpointów zasobowych jest w `tests/TurniejePro.Tests/ResourceAuthorizationMatrixTests.cs`: 7 endpointów (edycja i usunięcie turnieju, generowanie i usunięcie terminarza, akceptacja i odrzucenie zgłoszenia, wpis wyniku) × 6 wywołujących (brak tokenu, obcy użytkownik, organizator innego turnieju, kapitan drużyny, organizator turnieju, `Admin`). Oczekiwane kody: brak tokenu `401`, obcy, organizator innego turnieju i kapitan `403` (przy odmowie dane się nie zmieniają), organizator i `Admin` kod sukcesu. Dla nieistniejącego zasobu brak tokenu daje `401` (autoryzacja przed szukaniem zasobu), a zalogowany `404`. Nowy endpoint zasobowy to jeden wpis w słowniku `Endpoints`.
 - Handlery wymagań testujemy także jednostkowo: właściciel, obcy, `Admin`, zasób z `OrganizerId == null`.
 - Dodatkowo sprawdzamy `401` dla tokenu nieprawidłowego, wygasłego, podpisanego innym kluczem oraz ze złym `issuer` i `audience`.
 - Tokeny w testach generuje wspólny pomocnik `tests/TurniejePro.Tests/TestTokens.cs` (bez logowania przez HTTP).
@@ -231,7 +232,7 @@ Na dzień przyjęcia dokumentu kod realizuje jeszcze stary model ról globalnych
 | Polityka `ManageTournament` (`TournamentOrganizerHandler`) w edycji i usuwaniu turnieju, akceptacji i odrzucaniu zgłoszeń, generowaniu i usuwaniu terminarza oraz wpisywaniu wyników | zrobione | TA-14.2.1 (KAN-283) |
 | Polityka `ManageTeam` dla drużyn | do zrobienia, razem z edycją drużyny | — |
 | `EnterResults` jako osobna polityka zasobowa: wynik wpisuje tylko organizator turnieju lub admin, kapitan nie | zrobione | TA-14.2.3 (KAN-285) |
-| Testy 401/403 dla cudzych zasobów | do zrobienia | TA-14.2.4 |
+| Testy 401/403 dla cudzych zasobów | zrobione | TA-14.2.4 (KAN-286) |
 | Widoczność akcji w UI według `OrganizerId`/`CaptainId` | do zrobienia | TA-14.2.5 |
 | `ContactEmail` tylko dla uprawnionych | do zrobienia | do dopisania w Jirze |
 | `PayEntryFee` | do zrobienia | epik „Opłata wpisowa przez PayPal” |
