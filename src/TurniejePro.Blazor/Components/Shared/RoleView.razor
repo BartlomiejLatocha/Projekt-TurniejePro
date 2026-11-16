@@ -26,6 +26,18 @@
     [Parameter]
     public bool AnonymousOnly { get; set; }
 
+    /// <summary>
+    /// Gdy ustawione, element jest widoczny tylko dla właściciela zasobu (<see cref="Owner"/>) albo administratora.
+    /// </summary>
+    [Parameter]
+    public bool RequireOwner { get; set; }
+
+    /// <summary>
+    /// Identyfikator właściciela zasobu (np. <c>OrganizerId</c> turnieju), używany z <see cref="RequireOwner"/>.
+    /// </summary>
+    [Parameter]
+    public Guid? Owner { get; set; }
+
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
@@ -39,6 +51,11 @@
         if (!Session.IsLoggedIn)
         {
             return false;
+        }
+
+        if (RequireOwner)
+        {
+            return Session.IsOwner(Owner);
         }
 
         if (string.IsNullOrWhiteSpace(Roles))

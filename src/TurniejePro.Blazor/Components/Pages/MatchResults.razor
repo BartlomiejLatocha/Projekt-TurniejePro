@@ -13,10 +13,10 @@
 
 <h1>Wyniki meczów</h1>
 
-@if (!canEnterResults)
+@if (tournament is not null && !canEnterResults)
 {
     <div class="alert alert-warning" role="alert">
-        Wpisywanie wyników jest dostępne tylko dla organizatorów. Zaloguj się na konto z odpowiednią rolą.
+        Wpisywanie wyników jest dostępne tylko dla organizatora tego turnieju.
     </div>
 }
 else if (isLoading)
@@ -107,12 +107,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnSessionChanged;
-        UpdateAccess();
-
-        if (canEnterResults)
-        {
-            await LoadAsync();
-        }
+        await LoadAsync();
 
         isLoading = false;
     }
@@ -125,11 +120,12 @@ else
         InvokeAsync(StateHasChanged);
     }
 
-    private void UpdateAccess() => canEnterResults = Session.IsInRole(RoleNames.Organizer);
+    private void UpdateAccess() => canEnterResults = Session.IsOwner(tournament?.OrganizerId);
 
     private async Task LoadAsync()
     {
         tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+        UpdateAccess();
 
         var result = await TournamentApi.GetScheduleAsync(TournamentId);
         schedule = result.Schedule;

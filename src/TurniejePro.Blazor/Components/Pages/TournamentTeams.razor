@@ -13,10 +13,10 @@
 
 <h1>Zgłoszenia drużyn</h1>
 
-@if (!canManage)
+@if (tournament is not null && !canManage)
 {
     <div class="alert alert-warning" role="alert">
-        Akceptowanie zgłoszeń jest dostępne tylko dla organizatorów. Zaloguj się na konto z odpowiednią rolą.
+        Zarządzanie zgłoszeniami jest dostępne tylko dla organizatora tego turnieju.
     </div>
 }
 else if (tournament is null)
@@ -101,12 +101,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnSessionChanged;
-        UpdateAccess();
-
-        if (canManage)
-        {
-            await LoadAsync();
-        }
+        await LoadAsync();
     }
 
     public void Dispose() => Session.Changed -= OnSessionChanged;
@@ -117,11 +112,12 @@ else
         InvokeAsync(StateHasChanged);
     }
 
-    private void UpdateAccess() => canManage = Session.IsInRole(RoleNames.Organizer);
+    private void UpdateAccess() => canManage = Session.IsOwner(tournament?.OrganizerId);
 
     private async Task LoadAsync()
     {
         tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+        UpdateAccess();
         teams = await TeamApi.GetTeamsAsync(TournamentId);
     }
 

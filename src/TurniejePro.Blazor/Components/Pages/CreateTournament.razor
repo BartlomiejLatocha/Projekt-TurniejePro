@@ -15,7 +15,7 @@
 @if (!canCreate)
 {
     <div class="alert alert-warning" role="alert">
-        Tworzenie turniejów jest dostępne tylko dla organizatorów. Zaloguj się na konto z odpowiednią rolą.
+        Tworzenie turnieju wymaga zalogowania. Twórca zostaje jego organizatorem.
     </div>
 }
 else
@@ -95,7 +95,7 @@ else
         InvokeAsync(StateHasChanged);
     }
 
-    private void UpdateAccess() => canCreate = Session.IsInRole(RoleNames.Organizer);
+    private void UpdateAccess() => canCreate = Session.IsLoggedIn;
 
     private async Task HandleValidSubmitAsync()
     {

@@ -58,7 +58,7 @@ else
                             <div class="d-flex gap-3 flex-wrap">
                             <a href="tournaments/@tournament.Id/schedule">Terminarz</a>
                             <a href="tournaments/@tournament.Id/standings">Tabela</a>
-                            <RoleView Roles="Organizer">
+                            <RoleView RequireOwner="true" Owner="tournament.OrganizerId">
                                 <a href="tournaments/@tournament.Id/teams">Zgłoszenia</a>
                             </RoleView>
                             </div>

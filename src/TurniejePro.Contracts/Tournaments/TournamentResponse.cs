@@ -9,10 +9,12 @@ namespace TurniejePro.Contracts.Tournaments;
 /// <param name="Format">System rozgrywek.</param>
 /// <param name="StartsAt">Termin rozpoczęcia (UTC).</param>
 /// <param name="MaxTeams">Limit drużyn.</param>
+/// <param name="OrganizerId">Organizator turnieju (null, gdy turniej nie ma właściciela).</param>
 public sealed record TournamentResponse(
     Guid Id,
     string Name,
     string Discipline,
     TournamentFormat Format,
     DateTimeOffset StartsAt,
-    int MaxTeams);
+    int MaxTeams,
+    Guid? OrganizerId);

@@ -32,4 +32,12 @@ public sealed class AuthSession
     public bool IsInRole(string role) => Current?.Roles.Contains(role) ?? false;
 
     public bool IsInAnyRole(IEnumerable<string> roles) => roles.Any(IsInRole);
+
+    /// <summary>
+    /// Czy zalogowany użytkownik może zarządzać zasobem należącym do <paramref name="ownerId"/>
+    /// (np. organizator turnieju). Administrator może zarządzać każdym zasobem.
+    /// </summary>
+    public bool IsOwner(Guid? ownerId) =>
+        Current is not null
+        && (IsInRole(RoleNames.Admin) || (ownerId is { } id && id == Current.UserId));
 }
