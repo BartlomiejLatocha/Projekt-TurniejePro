@@ -65,6 +65,19 @@ else
             <ValidationMessage For="() => model.ContactEmail" class="text-danger" />
         </div>
 
+        <div class="mb-4">
+            <label class="form-label" for="team-logo">Logo drużyny (opcjonalnie, PNG lub JPG do 1 MB)</label>
+            <InputFile id="team-logo" class="form-control" accept="image/png,image/jpeg" OnChange="OnLogoSelectedAsync" />
+            @if (logoError is not null)
+            {
+                <div class="text-danger small mt-1">@logoError</div>
+            }
+            @if (logoPreviewUrl is not null)
+            {
+                <img class="tp-team-logo tp-team-logo-large mt-2" src="@logoPreviewUrl" alt="Podgląd logo drużyny" />
+            }
+        </div>
+
         <h2 class="h5">Zawodnicy</h2>
 
         @for (var i = 0; i < model.Players.Count; i++)
@@ -126,6 +139,42 @@ else
     private void UpdateAccess() =>
         canRegister = Session.IsLoggedIn;
 
+    private const long MaxLogoBytes = 1024 * 1024;
+
+    private byte[]? logoBytes;
+    private string? logoContentType;
+    private string? logoPreviewUrl;
+    private string? logoError;
+
+    private async Task OnLogoSelectedAsync(InputFileChangeEventArgs e)
+    {
+        logoBytes = null;
+        logoContentType = null;
+        logoPreviewUrl = null;
+        logoError = null;
+
+        var file = e.File;
+        if (file.ContentType is not ("image/png" or "image/jpeg"))
+        {
+            logoError = "Logo musi być plikiem PNG lub JPG.";
+            return;
+        }
+
+        if (file.Size > MaxLogoBytes)
+        {
+            logoError = "Logo może mieć najwyżej 1 MB.";
+            return;
+        }
+
+        await using var stream = file.OpenReadStream(MaxLogoBytes);
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+
+        logoBytes = memory.ToArray();
+        logoContentType = file.ContentType;
+        logoPreviewUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(logoBytes)}";
+    }
+
     private void AddPlayer() => model.Players.Add(new PlayerForm());
 
     private void RemovePlayer(int index) => model.Players.RemoveAt(index);
@@ -170,8 +219,21 @@ else
             if (result.Team is { } team)
             {
                 successMessage = $"Drużyna „{team.Name}” została zgłoszona. Status: oczekuje na akceptację organizatora.";
+
+                if (logoBytes is not null && logoContentType is not null)
+                {
+                    var logoResult = await TeamApi.UploadLogoAsync(team.Id, logoBytes, logoContentType, accessToken);
+                    if (logoResult.ErrorMessage is not null)
+                    {
+                        successMessage += $" Logo nie zostało zapisane: {logoResult.ErrorMessage}";
+                    }
+                }
+
                 model = CreateEmptyForm();
                 model.TournamentId = tournamentId;
+                logoBytes = null;
+                logoContentType = null;
+                logoPreviewUrl = null;
             }
             else
             {

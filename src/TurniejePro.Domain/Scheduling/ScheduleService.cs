@@ -82,6 +82,48 @@ public class ScheduleService
                 }
             }
         }
+        else if (tournament.Format == TournamentFormat.GroupsAndCup)
+        {
+            var groupCount = GroupStage.GroupCountFor(acceptedTeams.Count);
+            if (groupCount == 0)
+            {
+                throw new BusinessRuleException(
+                    $"Faza grupowa wymaga co najmniej {GroupStage.MinTeamsPerGroup * 2} zaakceptowanych drużyn (po co najmniej {GroupStage.MinTeamsPerGroup} w grupie).");
+            }
+
+            var teamsById = acceptedTeams.ToDictionary(t => t.Id);
+            var groups = GroupStage.Distribute(teamIds, groupCount);
+
+            // Mecze każdy z każdym w grupie. Pozycje są unikalne w rundzie w obrębie całego turnieju.
+            var positionInRound = new Dictionary<int, int>();
+            for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+            {
+                foreach (var teamId in groups[groupIndex])
+                {
+                    teamsById[teamId].GroupNumber = groupIndex + 1;
+                }
+
+                foreach (var round in RoundRobinScheduler.Generate(groups[groupIndex]))
+                {
+                    foreach (var pairing in round.Pairings)
+                    {
+                        positionInRound[round.Number] = positionInRound.GetValueOrDefault(round.Number) + 1;
+
+                        var match = new Match(
+                            tournamentId,
+                            round.Number,
+                            positionInRound[round.Number],
+                            pairing.HomeTeamId,
+                            pairing.AwayTeamId)
+                        {
+                            IsGroupStage = true
+                        };
+
+                        createdMatches.Add(match);
+                    }
+                }
+            }
+        }
         else // Format pucharowy (Cup)
         {
             var rounds = KnockoutBracketGenerator.Generate(teamIds);

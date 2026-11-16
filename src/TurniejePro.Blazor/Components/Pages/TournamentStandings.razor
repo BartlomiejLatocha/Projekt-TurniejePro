@@ -7,7 +7,7 @@
 
 <PageTitle>Tabela</PageTitle>
 
-<h1>Tabela ligowa</h1>
+<h1>@(tournament?.Format == TournamentFormat.GroupsAndCup ? "Tabela grup" : "Tabela ligowa")</h1>
 
 @if (isLoading)
 {
@@ -17,17 +17,33 @@ else
 {
     @if (tournament is not null)
     {
-        <h2 class="h4">@tournament.Name</h2>
-    }
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="tp-discipline-badge"><DisciplineIcon Code="@tournament.Discipline" Size="28" /></span>
+            <div>
+                <h2 class="h4 mb-0">@DisciplineCatalog.NameOf(tournament.Discipline)</h2>
+                <span class="text-muted">@tournament.Name</span>
+            </div>
+        </div>
 
-    <p class="text-muted">Punkty: wygrana 3, remis 1, porażka 0. Przy równej liczbie punktów decyduje bilans bramek, potem bramki zdobyte i mecze bezpośrednie.</p>
+        @if (tournament.Format != TournamentFormat.Cup)
+        {
+            var rules = tournament.ScoringRules;
+            <p class="text-muted">Punkty: wygrana @rules.PointsForWin, @(rules.AllowDraws ? $"remis {rules.PointsForDraw}, " : "")porażka @rules.PointsForLoss. Przy równej liczbie punktów decyduje bilans bramek, potem bramki zdobyte i mecze bezpośrednie.</p>
+        }
+    }
 
     @if (errorMessage is not null)
     {
         <div class="alert alert-warning" role="status">@errorMessage</div>
     }
 
-    @if (standings is not null)
+    @if (tournament?.Format == TournamentFormat.Cup)
+    {
+        <div class="alert alert-info" role="status">
+            Turniej pucharowy nie ma tabeli ligowej. Wyniki i awanse zobacz w <a href="tournaments/@TournamentId/bracket">drabince</a>.
+        </div>
+    }
+    else if (standings is not null)
     {
         @if (standings.Rows.Count == 0)
         {
@@ -35,6 +51,13 @@ else
         }
         else
         {
+            @foreach (var group in standings.Rows.GroupBy(r => r.Group))
+            {
+                @if (group.Key is { } groupNumber)
+                {
+                    <h3 class="h5 mt-4">Grupa @GroupLetter(groupNumber)</h3>
+                }
+
             <div class="table-responsive">
                 <table class="table align-middle">
                     <thead>
@@ -51,11 +74,11 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var row in standings.Rows)
+                        @foreach (var row in group)
                         {
                             <tr>
                                 <td>@row.Place</td>
-                                <td>@row.TeamName</td>
+                                <td><span class="d-inline-flex align-items-center"><TeamLogo TeamId="@row.TeamId" HasLogo="@row.HasLogo" Name="@row.TeamName" Size="24" />@row.TeamName</span></td>
                                 <td class="text-center">@row.Played</td>
                                 <td class="text-center">@row.Won</td>
                                 <td class="text-center">@row.Drawn</td>
@@ -68,6 +91,7 @@ else
                     </tbody>
                 </table>
             </div>
+            }
         }
     }
 }
@@ -91,6 +115,8 @@ else
 
         isLoading = false;
     }
+
+    private static string GroupLetter(int group) => ((char)('A' + group - 1)).ToString();
 
     private static string FormatDifference(int difference) =>
         difference > 0 ? $"+{difference}" : difference.ToString();

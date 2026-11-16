@@ -28,6 +28,18 @@ else
     <h2 class="h4">@tournament.Name</h2>
     <p>Zaakceptowane drużyny: <strong>@acceptedCount</strong> z @tournament.MaxTeams</p>
 
+    <div class="d-flex align-items-center gap-3 flex-wrap mb-3">
+        <span class="badge text-bg-secondary">Status: @StatusLabel(tournament.Status)</span>
+        @if (tournament.Status == TournamentStatus.Draft)
+        {
+            <button class="btn btn-sm btn-outline-primary" disabled="@isChangingStatus" @onclick="OpenRegistrationAsync">Otwórz zapisy</button>
+        }
+        @if (tournament.Status is TournamentStatus.Draft or TournamentStatus.RegistrationOpen)
+        {
+            <button class="btn btn-sm btn-primary" disabled="@isChangingStatus" @onclick="StartTournamentAsync">Rozpocznij turniej</button>
+        }
+    </div>
+
     @if (successMessage is not null)
     {
         <div class="alert alert-success" role="status">@successMessage</div>
@@ -63,7 +75,7 @@ else
                     @foreach (var team in teams)
                     {
                         <tr>
-                            <td>@team.Name</td>
+                            <td><span class="d-inline-flex align-items-center"><TeamLogo TeamId="@team.Id" HasLogo="@team.HasLogo" Name="@team.Name" Size="28" />@team.Name</span></td>
                             <td>@(team.ContactEmail ?? "—")</td>
                             <td>@team.Players.Count</td>
                             <td>@StatusName(team.Status)</td>
@@ -95,6 +107,7 @@ else
     private string? successMessage;
     private Guid? busyTeamId;
     private bool canManage;
+    private bool isChangingStatus;
 
     private int acceptedCount => teams?.Count(t => t.Status == TeamRegistrationStatus.Accepted) ?? 0;
 
@@ -156,6 +169,54 @@ else
             busyTeamId = null;
         }
     }
+
+    private async Task OpenRegistrationAsync() => await ChangeTournamentStatusAsync(open: true);
+
+    private async Task StartTournamentAsync() => await ChangeTournamentStatusAsync(open: false);
+
+    private async Task ChangeTournamentStatusAsync(bool open)
+    {
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            errorMessage = "Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie.";
+            return;
+        }
+
+        isChangingStatus = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var result = open
+                ? await TournamentApi.OpenRegistrationAsync(TournamentId, accessToken)
+                : await TournamentApi.StartTournamentAsync(TournamentId, accessToken);
+
+            if (result.Tournament is { } updated)
+            {
+                tournament = updated;
+                successMessage = open ? "Zapisy zostały otwarte." : "Turniej został rozpoczęty.";
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            isChangingStatus = false;
+        }
+    }
+
+    private static string StatusLabel(TournamentStatus status) => status switch
+    {
+        TournamentStatus.Draft => "Szkic",
+        TournamentStatus.RegistrationOpen => "Zapisy",
+        TournamentStatus.InProgress => "W trakcie",
+        TournamentStatus.Finished => "Zakończony",
+        _ => status.ToString()
+    };
 
     private static string StatusName(TeamRegistrationStatus status) => status switch
     {

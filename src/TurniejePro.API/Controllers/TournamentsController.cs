@@ -87,14 +87,27 @@ public class TournamentsController : ControllerBase
             organizerId = parsedGuid;
         }
 
-        // Błędne dane turnieju (ArgumentException z encji) zamienia na 400 globalny handler wyjątków
+        if (DisciplineCatalog.Find(request.Discipline) is null)
+        {
+            return Problem(
+                detail: $"Nieznana dyscyplina '{request.Discipline}'. Wybierz dyscyplinę z listy.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid Discipline");
+        }
+
+        // Błędne dane turnieju (ArgumentException z encji, także z punktacji) zamienia na 400 globalny handler wyjątków
+        var scoringRules = request.ScoringRules is { } rules
+            ? new ScoringRules(rules.PointsForWin, rules.PointsForDraw, rules.PointsForLoss, rules.AllowDraws)
+            : null;
+
         var tournament = new Tournament(
             request.Name,
             request.Discipline,
             (Domain.Enums.TournamentFormat)request.Format,
             request.StartsAt,
             request.MaxTeams,
-            organizerId);
+            organizerId,
+            scoringRules);
 
         await _unitOfWork.Tournaments.AddAsync(tournament, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -142,6 +155,65 @@ public class TournamentsController : ControllerBase
             (Domain.Enums.TournamentFormat)request.Format,
             request.StartsAt,
             request.MaxTeams);
+
+        _unitOfWork.Tournaments.Update(tournament);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Ok(tournament.ToDetailsResponse());
+    }
+
+    /// <summary>
+    /// Szkic → Zapisy: otwiera zgłoszenia drużyn. Wymaga tokenu organizatora.
+    /// </summary>
+    [HttpPatch("{id:guid}/open-registration")]
+    [Authorize]
+    [ProducesResponseType(typeof(TournamentDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> OpenRegistration(Guid id, CancellationToken cancellationToken)
+    {
+        return await ChangeStatusAsync(id, t => t.OpenRegistration(), cancellationToken);
+    }
+
+    /// <summary>
+    /// Szkic lub Zapisy → W trakcie: rozpoczyna turniej i blokuje zmiany formatu oraz punktacji. Wymaga tokenu organizatora.
+    /// </summary>
+    [HttpPatch("{id:guid}/start")]
+    [Authorize]
+    [ProducesResponseType(typeof(TournamentDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken)
+    {
+        return await ChangeStatusAsync(id, t => t.Start(), cancellationToken);
+    }
+
+    private async Task<IActionResult> ChangeStatusAsync(Guid id, Action<Tournament> change, CancellationToken cancellationToken)
+    {
+        var tournament = await _unitOfWork.Tournaments.GetWithDetailsAsync(id, cancellationToken);
+
+        if (tournament is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono turnieju",
+                Detail = $"Turniej o identyfikatorze '{id}' nie istnieje."
+            });
+        }
+
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
+        {
+            return Forbid();
+        }
+
+        // Niedozwolone przejście stanu (BusinessRuleException) zamienia na 400 globalny handler wyjątków
+        change(tournament);
 
         _unitOfWork.Tournaments.Update(tournament);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

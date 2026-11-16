@@ -27,7 +27,7 @@ else
 
     @if (schedule is not null)
     {
-        @if (schedule.Format != TournamentFormat.Cup)
+        @if (schedule.Format == TournamentFormat.League)
         {
             <div class="alert alert-info" role="status">
                 Drabinka dotyczy turniejów pucharowych. Ten turniej rozgrywany jest systemem ligowym, zobacz <a href="tournaments/@TournamentId/standings">tabelę ligową</a>.
@@ -35,34 +35,59 @@ else
         }
         else
         {
-            <div class="d-flex gap-4 overflow-auto pb-3">
-                @for (var i = 0; i < schedule.Rounds.Count; i++)
-                {
-                    var round = schedule.Rounds[i];
-                    var remaining = schedule.Rounds.Count - i;
+            // W fazie grupowej mecze grup są w osobnych rundach; drabinka to rundy wyłącznie pucharowe.
+            var rounds = schedule.Rounds.Where(r => r.Matches.All(m => m.Group is null)).ToList();
 
-                    <div style="min-width: 15rem;">
-                        <h3 class="h6 text-center">@RoundTitle(remaining)</h3>
+            <div class="tp-bracket-scroll">
+                <div class="tp-bracket" style="width: @(TotalWidth(rounds.Count))px; height: @(TotalHeight(rounds))px;">
+                    <svg class="tp-bracket-lines" width="@TotalWidth(rounds.Count)" height="@TotalHeight(rounds)"
+                         viewBox="0 0 @TotalWidth(rounds.Count) @TotalHeight(rounds)" aria-hidden="true">
+                        @foreach (var connector in BuildConnectors(rounds))
+                        {
+                            <path d="@connector.Path" pathLength="1" class="@connector.CssClass" style="animation-delay: @(connector.DelayMs)ms" />
+                        }
+                    </svg>
 
-                        @foreach (var match in round.Matches)
+                    @for (var i = 0; i < rounds.Count; i++)
+                    {
+                        var roundIndex = i;
+                        var remaining = rounds.Count - roundIndex;
+
+                        <div class="tp-bracket-title" style="left: @(Left(roundIndex))px; width: @(CardWidth)px; --r: @roundIndex;">
+                            @RoundTitle(remaining)
+                        </div>
+
+                        @foreach (var match in rounds[roundIndex].Matches)
                         {
                             var winner = WinnerSide(match);
+                            var cardClass = winner == 0 ? "tp-bracket-card" : "tp-bracket-card tp-bracket-card-done";
 
-                            <div class="card mb-3">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between @(winner == 1 ? "fw-bold" : "")">
-                                        <span>@HomeName(match)</span>
-                                        <span>@(match.HomeScore?.ToString() ?? "")</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between @(winner == 2 ? "fw-bold" : "")">
-                                        <span>@AwayName(match)</span>
-                                        <span>@(match.AwayScore?.ToString() ?? "")</span>
-                                    </div>
+                            <div class="@cardClass"
+                                 style="left: @(Left(roundIndex))px; top: @(CenterY(roundIndex, match.Position) - CardHeight / 2)px; width: @(CardWidth)px; height: @(CardHeight)px; --r: @(roundIndex);">
+                                <div class="tp-bracket-row @(winner == 1 ? "tp-winner" : "") @(winner == 2 ? "tp-loser" : "")">
+                                    <span class="d-inline-flex align-items-center text-truncate @(roundIndex > 0 && match.HomeTeam is not null ? "tp-advance" : "")">
+                                        @if (match.HomeTeam is { } home)
+                                        {
+                                            <TeamLogo TeamId="@home.Id" HasLogo="@home.HasLogo" Name="@home.Name" Size="20" />
+                                        }
+                                        @HomeName(match)
+                                    </span>
+                                    <span>@(match.HomeScore?.ToString() ?? "")</span>
+                                </div>
+                                <div class="tp-bracket-row @(winner == 2 ? "tp-winner" : "") @(winner == 1 && !match.IsBye ? "tp-loser" : "")">
+                                    <span class="d-inline-flex align-items-center text-truncate @(roundIndex > 0 && match.AwayTeam is not null ? "tp-advance" : "")">
+                                        @if (match.AwayTeam is { } away)
+                                        {
+                                            <TeamLogo TeamId="@away.Id" HasLogo="@away.HasLogo" Name="@away.Name" Size="20" />
+                                        }
+                                        @AwayName(match)
+                                    </span>
+                                    <span>@(match.AwayScore?.ToString() ?? "")</span>
                                 </div>
                             </div>
                         }
-                    </div>
-                }
+                    }
+                </div>
             </div>
         }
     }
@@ -71,6 +96,13 @@ else
 @code {
     [Parameter]
     public Guid TournamentId { get; set; }
+
+    // Wymiary w pikselach. Wszystkie pozycje są liczbami całkowitymi, więc nie zależą od ustawień regionalnych.
+    private const int CardWidth = 280;
+    private const int CardHeight = 88;
+    private const int ColumnGap = 150;
+    private const int Slot = 118;
+    private const int TopOffset = 56;
 
     private TournamentDetailsResponse? tournament;
     private ScheduleResponse? schedule;
@@ -86,6 +118,39 @@ else
         errorMessage = result.ErrorMessage;
 
         isLoading = false;
+    }
+
+    // Lewa krawędź kolumny rundy o indeksie r (0 to pierwsza runda).
+    private static int Left(int r) => r * (CardWidth + ColumnGap);
+
+    // Środek karty meczu o pozycji p (od 1) w rundzie r. Rodzic leży dokładnie między swoimi dwoma dziećmi.
+    private static int CenterY(int r, int p) => (Slot / 2) * (1 << r) * (2 * p - 1) + TopOffset;
+
+    private static int TotalWidth(int roundCount) => roundCount * CardWidth + Math.Max(0, roundCount - 1) * ColumnGap;
+
+    private static int TotalHeight(IReadOnlyList<ScheduleRoundResponse> rounds) => rounds.Count == 0 ? 0 : rounds.Max(r => r.Matches.Count) * Slot + TopOffset;
+
+    // Łączniki: z każdego meczu do meczu następnej rundy, do którego awansuje zwycięzca (pozycja (p + 1) / 2).
+    private static IEnumerable<Connector> BuildConnectors(IReadOnlyList<ScheduleRoundResponse> rounds)
+    {
+        for (var r = 0; r < rounds.Count - 1; r++)
+        {
+            foreach (var match in rounds[r].Matches)
+            {
+                var parentPosition = (match.Position + 1) / 2;
+                var x0 = Left(r) + CardWidth;
+                var y0 = CenterY(r, match.Position);
+                var xMiddle = x0 + ColumnGap / 2;
+                var x1 = Left(r + 1);
+                var y1 = CenterY(r + 1, parentPosition);
+                var won = WinnerSide(match) != 0;
+
+                yield return new Connector(
+                    $"M {x0} {y0} H {xMiddle} V {y1} H {x1}",
+                    won ? "tp-connector tp-connector-won" : "tp-connector",
+                    300 + r * 250);
+            }
+        }
     }
 
     // remaining = liczba rund od tej włącznie do finału: 1 to finał, 2 to półfinał, 3 to 1/4 finału itd.
@@ -124,4 +189,6 @@ else
 
         return home > away ? 1 : away > home ? 2 : 0;
     }
+
+    private sealed record Connector(string Path, string CssClass, int DelayMs);
 }

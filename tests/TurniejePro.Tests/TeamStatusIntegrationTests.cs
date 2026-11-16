@@ -38,7 +38,7 @@ public class TeamStatusIntegrationTests : IClassFixture<CustomWebApplicationFact
         AuthenticateAs(_organizerId);
         var createTournamentReq = new CreateTournamentRequest(
             Name: $"Turniej Status {Guid.NewGuid().ToString()[..8]}",
-            Discipline: "Siatkówka",
+            Discipline: "volleyball",
             Format: TournamentFormat.Cup,
             StartsAt: DateTimeOffset.UtcNow.AddDays(7),
             MaxTeams: 2

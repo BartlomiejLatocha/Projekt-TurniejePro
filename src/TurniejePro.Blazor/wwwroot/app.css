@@ -568,3 +568,219 @@ body {
 .table-responsive {
     margin-bottom: 1.25rem;
 }
+
+/* Ikony dyscyplin */
+.tp-discipline-icon {
+    flex: 0 0 auto;
+}
+
+.tp-discipline-badge {
+    display: inline-grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--tp-accent), var(--tp-accent-2));
+    box-shadow: 0 10px 26px rgba(109, 140, 255, 0.35);
+    animation: tp-pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes tp-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Lista turniejów: znacznik doczytywania i odstępy między grupami dyscyplin */
+.tp-sentinel {
+    height: 1px;
+}
+
+.tp-discipline-group + .tp-discipline-group {
+    margin-top: 0.5rem;
+}
+
+/* Logo drużyny */
+.tp-team-logo {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    margin-right: 0.6rem;
+    border-radius: 8px;
+    object-fit: contain;
+    vertical-align: middle;
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--tp-border);
+}
+
+.tp-team-logo-fallback {
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--tp-accent), var(--tp-accent-2));
+    border: none;
+}
+
+.tp-team-logo-large {
+    width: 96px;
+    height: 96px;
+}
+
+/* Drabinka: układ, łączniki i animacje */
+.tp-bracket-scroll {
+    overflow-x: auto;
+    padding-bottom: 1rem;
+}
+
+.tp-bracket {
+    position: relative;
+}
+
+.tp-bracket-lines {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.tp-connector {
+    fill: none;
+    stroke: rgba(143, 155, 187, 0.45);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: tp-draw 0.7s ease forwards;
+}
+
+.tp-connector-won {
+    stroke: var(--tp-accent);
+    animation: tp-draw 0.7s ease forwards, tp-glow 2.4s ease-in-out 1s infinite;
+}
+
+@keyframes tp-draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes tp-glow {
+    0%, 100% {
+        filter: drop-shadow(0 0 2px rgba(109, 140, 255, 0.4));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 8px rgba(109, 140, 255, 0.9));
+    }
+}
+
+.tp-bracket-card {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 12px;
+    background-color: var(--tp-surface);
+    border: 1px solid var(--tp-border);
+    box-shadow: var(--tp-shadow);
+    animation: tp-fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--r, 0) * 0.25s);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tp-bracket-card-done {
+    border-color: rgba(109, 140, 255, 0.4);
+}
+
+.tp-bracket-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 30px;
+    font-size: 0.92rem;
+    color: var(--tp-muted);
+}
+
+.tp-bracket-row > span:first-child {
+    min-width: 0;
+}
+
+.tp-bracket-row.tp-winner {
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.tp-bracket-title {
+    position: absolute;
+    top: 0;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tp-muted);
+    animation: tp-fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--r, 0) * 0.25s);
+}
+
+/* Awans zwycięzcy: nazwa wjeżdża do kolejnej rundy po narysowaniu łącznika */
+.tp-advance {
+    animation: tp-slide-in 0.45s ease both;
+    animation-delay: calc(var(--r, 0) * 0.25s + 0.45s);
+}
+
+/* Przegrany: nazwa przygaszona, a linia przekreślenia rysuje się po awansie zwycięzcy */
+.tp-bracket-row.tp-loser > span:first-child {
+    position: relative;
+    color: rgba(143, 155, 187, 0.55);
+    transition: color 0.4s ease;
+}
+
+.tp-bracket-row.tp-loser > span:first-child::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--tp-danger);
+    transform: scaleX(0);
+    transform-origin: left center;
+    animation: tp-strike 0.5s ease forwards;
+    animation-delay: calc(var(--r, 0) * 0.25s + 0.6s);
+}
+
+@keyframes tp-strike {
+    to {
+        transform: scaleX(1);
+    }
+}
+
+/* Inicjał w znaczniku zastępczym: wycentrowany w pionie (bez dziedziczenia wysokiej wysokości linii). */
+.tp-team-logo-fallback {
+    line-height: 1;
+    padding: 0;
+}
+
+/* Drabinka na szerokość ekranu (przewijanie tylko przy bardzo dużej liczbie rund) */
+.tp-bracket-scroll {
+    width: 100%;
+}
+
+.tp-bracket {
+    min-width: 100%;
+}
+
+.tp-bracket-row {
+    font-size: 1rem;
+}

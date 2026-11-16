@@ -151,7 +151,7 @@ public class AuthorizationMatrixTests : IClassFixture<CustomWebApplicationFactor
     }
 
     private static CreateTournamentRequest CreateValidTournament() =>
-        new("Turniej testowy", "Piłka nożna", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(7), MaxTeams: 8);
+        new("Turniej testowy", "football", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(7), MaxTeams: 8);
 
     private async Task<HttpStatusCode> GetStatusAsync(string method, string path, string? token)
     {

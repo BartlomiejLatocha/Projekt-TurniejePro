@@ -28,6 +28,12 @@ public static class TournamentMappingExtensions
             tournament.MaxTeams,
             tournament.IsStarted,
             tournament.OrganizerId,
-            tournament.Teams?.Count ?? 0);
+            tournament.Teams?.Count ?? 0,
+            new ScoringRulesRequest(
+                tournament.ScoringRules.PointsForWin,
+                tournament.ScoringRules.PointsForDraw,
+                tournament.ScoringRules.PointsForLoss,
+                tournament.ScoringRules.AllowDraws),
+            (Contracts.Tournaments.TournamentStatus)tournament.Status);
     }
 }

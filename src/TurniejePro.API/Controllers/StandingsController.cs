@@ -42,23 +42,38 @@ public class StandingsController : ControllerBase
 
         var matches = await _unitOfWork.Matches.GetByTournamentIdAsync(tournamentId, cancellationToken);
 
-        var rows = StandingsCalculator.Calculate(teams.Select(t => t.Id).ToList(), matches, tournament.ScoringRules);
+        // Faza grupowa: tabela osobno dla każdej grupy (mecze grupowe). Pozostałe formaty: jedna tabela.
+        var table = tournament.Format == TurniejePro.Domain.Enums.TournamentFormat.GroupsAndCup
+            ? teams.Where(t => t.GroupNumber is not null)
+                .GroupBy(t => t.GroupNumber!.Value)
+                .OrderBy(g => g.Key)
+                .SelectMany(g => StandingsCalculator
+                    .Calculate(g.Select(t => t.Id).ToList(), matches.Where(m => m.IsGroupStage).ToList(), tournament.ScoringRules)
+                    .Select(r => (Row: r, Group: (int?)g.Key)))
+                .ToList()
+            : StandingsCalculator
+                .Calculate(teams.Select(t => t.Id).ToList(), matches, tournament.ScoringRules)
+                .Select(r => (Row: r, Group: (int?)null))
+                .ToList();
         var names = teams.ToDictionary(t => t.Id, t => t.Name);
+        var logos = teams.ToDictionary(t => t.Id, t => t.HasLogo);
 
         var response = new StandingsResponse(
             tournamentId,
-            rows.Select(r => new StandingsRowResponse(
-                r.Place,
-                r.TeamId,
-                names[r.TeamId],
-                r.Played,
-                r.Won,
-                r.Drawn,
-                r.Lost,
-                r.GoalsFor,
-                r.GoalsAgainst,
-                r.GoalDifference,
-                r.Points)).ToList());
+            table.Select(x => new StandingsRowResponse(
+                x.Row.Place,
+                x.Row.TeamId,
+                names[x.Row.TeamId],
+                x.Row.Played,
+                x.Row.Won,
+                x.Row.Drawn,
+                x.Row.Lost,
+                x.Row.GoalsFor,
+                x.Row.GoalsAgainst,
+                x.Row.GoalDifference,
+                x.Row.Points,
+                logos[x.Row.TeamId],
+                x.Group)).ToList());
 
         return Ok(response);
     }

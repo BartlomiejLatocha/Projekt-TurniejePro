@@ -9,4 +9,6 @@ public sealed record TournamentDetailsResponse(
     int MaxTeams,
     bool IsStarted,
     Guid? OrganizerId,
-    int TeamsCount);
+    int TeamsCount,
+    ScoringRulesRequest ScoringRules,
+    TournamentStatus Status = TournamentStatus.Draft);

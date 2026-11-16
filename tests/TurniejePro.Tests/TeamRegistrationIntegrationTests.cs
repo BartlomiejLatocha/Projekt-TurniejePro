@@ -33,7 +33,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<CustomWebApplicati
         AuthenticateAs(Roles.User);
         var createRequest = new CreateTournamentRequest(
             Name: $"Turniej Testowy {Guid.NewGuid().ToString()[..8]}",
-            Discipline: "Piłka Nożna",
+            Discipline: "football",
             Format: TournamentFormat.Cup,
             StartsAt: DateTimeOffset.UtcNow.AddDays(14),
             MaxTeams: 16

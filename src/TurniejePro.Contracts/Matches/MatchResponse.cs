@@ -13,6 +13,7 @@ namespace TurniejePro.Contracts.Matches;
 /// <param name="Status">Status meczu.</param>
 /// <param name="IsBye">Wolny los: gospodarz przechodzi dalej bez gry.</param>
 /// <param name="ScheduledAt">Termin meczu (UTC), jeśli ustalony.</param>
+/// <param name="Group">Numer grupy dla meczu fazy grupowej, null poza fazą grupową.</param>
 public sealed record MatchResponse(
     Guid Id,
     int Round,
@@ -23,4 +24,5 @@ public sealed record MatchResponse(
     int? AwayScore,
     MatchStatus Status,
     bool IsBye,
-    DateTimeOffset? ScheduledAt);
+    DateTimeOffset? ScheduledAt,
+    int? Group = null);

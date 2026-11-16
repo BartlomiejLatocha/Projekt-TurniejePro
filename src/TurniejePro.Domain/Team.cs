@@ -11,9 +11,44 @@ public class Team
     public Tournament? Tournament { get; set; }
     public Guid? CaptainId { get; set; }
     public string? ContactEmail { get; set; }
+
+    /// <summary>Numer grupy w fazie grupowej (od 1), null poza fazą grupową.</summary>
+    public int? GroupNumber { get; set; }
     public bool IsAccepted { get; private set; }
     public TeamRegistrationStatus Status { get; private set; } = TeamRegistrationStatus.Pending;
     public DateTimeOffset RegisteredAt { get; set; }
+
+    /// <summary>Typ pliku logo (image/png albo image/jpeg), null gdy brak logo.</summary>
+    public string? LogoContentType { get; private set; }
+
+    /// <summary>Dane logo drużyny, null gdy brak logo.</summary>
+    public byte[]? Logo { get; private set; }
+
+    public bool HasLogo => Logo is not null;
+
+    /// <summary>Maksymalny rozmiar logo: 1 MB.</summary>
+    public const int MaxLogoBytes = 1024 * 1024;
+
+    public void SetLogo(string contentType, byte[] data)
+    {
+        if (contentType is not ("image/png" or "image/jpeg"))
+        {
+            throw new ArgumentException("Logo musi być plikiem PNG lub JPG.", nameof(contentType));
+        }
+
+        if (data is null || data.Length == 0)
+        {
+            throw new ArgumentException("Plik logo nie może być pusty.", nameof(data));
+        }
+
+        if (data.Length > MaxLogoBytes)
+        {
+            throw new ArgumentException("Logo może mieć najwyżej 1 MB.", nameof(data));
+        }
+
+        LogoContentType = contentType;
+        Logo = data;
+    }
 
     public ICollection<Player> Players { get; set; } = new List<Player>();
 

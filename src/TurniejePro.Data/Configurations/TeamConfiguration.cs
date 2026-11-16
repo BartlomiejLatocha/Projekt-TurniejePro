@@ -29,6 +29,12 @@ public class TeamConfiguration : IEntityTypeConfiguration<Team>
         builder.Property(t => t.RegisteredAt)
             .IsRequired();
 
+        builder.Property(t => t.LogoContentType)
+            .HasMaxLength(50);
+
+        builder.Property(t => t.Logo)
+            .HasMaxLength(Team.MaxLogoBytes);
+
         builder.HasMany(t => t.Players)
             .WithOne(p => p.Team)
             .HasForeignKey(p => p.TeamId)
