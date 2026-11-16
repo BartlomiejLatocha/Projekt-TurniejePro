@@ -9,5 +9,8 @@ public enum TournamentFormat
     League = 1,
 
     /// <summary>Drabinka pucharowa.</summary>
-    Cup = 2
+    Cup = 2,
+
+    /// <summary>Faza grupowa (każdy z każdym w grupach), potem drabinka z najlepszymi z każdej grupy.</summary>
+    GroupsAndCup = 3
 }

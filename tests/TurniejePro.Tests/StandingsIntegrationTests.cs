@@ -37,7 +37,7 @@ public class StandingsIntegrationTests : IClassFixture<CustomWebApplicationFacto
         var createResponse = await _client.PostAsJsonAsync("/api/v1/tournaments", new
         {
             name = $"Tabela {Guid.NewGuid():N}",
-            discipline = "Pilka nozna",
+            discipline = "football",
             format = "League",
             startsAt = DateTimeOffset.UtcNow.AddDays(10),
             maxTeams = 4

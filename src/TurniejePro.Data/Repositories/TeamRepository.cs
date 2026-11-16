@@ -50,13 +50,13 @@ public class TeamRepository : Repository<Team>, ITeamRepository
         return await DbSet.AnyAsync(t => t.TournamentId == tournamentId && t.Name == name, cancellationToken);
     }
 
+    // Bez AsNoTracking: generowanie terminarza zapisuje numer grupy w pobranych drużynach.
     public async Task<IReadOnlyList<Team>> GetByTournamentIdAndStatusAsync(
         Guid tournamentId,
         TeamRegistrationStatus status,
         CancellationToken cancellationToken = default)
     {
         return await DbSet
-            .AsNoTracking()
             .Where(t => t.TournamentId == tournamentId && t.Status == status)
             .ToListAsync(cancellationToken);
     }

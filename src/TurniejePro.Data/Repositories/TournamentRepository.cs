@@ -24,7 +24,8 @@ public class TournamentRepository : Repository<Tournament>, ITournamentRepositor
     {
         return await DbSet
             .Where(t => t.OrganizerId == organizerId)
-            .OrderBy(t => t.Name)
+            .OrderBy(t => t.Discipline)
+            .ThenBy(t => t.Name)
             .ToListAsync(cancellationToken);
     }
 
@@ -44,7 +45,8 @@ public class TournamentRepository : Repository<Tournament>, ITournamentRepositor
 
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
-            .OrderBy(t => t.Name)
+            .OrderBy(t => t.Discipline)
+            .ThenBy(t => t.Name)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

@@ -1,9 +1,11 @@
 @page "/tournaments"
 @rendermode InteractiveServer
+@using Microsoft.JSInterop
 @using TurniejePro.Blazor.Services
-@using TurniejePro.Contracts.Common
 @using TurniejePro.Contracts.Tournaments
+@implements IAsyncDisposable
 @inject TournamentApiClient TournamentApi
+@inject IJSRuntime JS
 
 <PageTitle>Turnieje</PageTitle>
 
@@ -19,112 +21,189 @@
     </div>
 </form>
 
-@if (isLoading)
-{
-    <p><em>Ładowanie turniejów...</em></p>
-}
-else if (loadFailed)
+@if (loadFailed && items.Count == 0)
 {
     <div class="alert alert-danger" role="alert">Nie udało się pobrać listy turniejów. Sprawdź połączenie z API.</div>
 }
-else if (pageResult is null || pageResult.Items.Count == 0)
+else if (!isLoading && items.Count == 0)
 {
     <p class="text-muted">Brak turniejów do wyświetlenia.</p>
 }
 else
 {
-    <div class="table-responsive">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Nazwa</th>
-                    <th>Dyscyplina</th>
-                    <th>System rozgrywek</th>
-                    <th>Termin rozpoczęcia</th>
-                    <th>Limit drużyn</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var tournament in pageResult.Items)
-                {
-                    <tr>
-                        <td>@tournament.Name</td>
-                        <td>@tournament.Discipline</td>
-                        <td>@FormatName(tournament.Format)</td>
-                        <td>@tournament.StartsAt.ToLocalTime().ToString("g")</td>
-                        <td>@tournament.MaxTeams</td>
-                        <td>
-                            <div class="d-flex gap-3 flex-wrap">
-                            <a href="tournaments/@tournament.Id/schedule">Terminarz</a>
-                            <a href="tournaments/@tournament.Id/standings">Tabela</a>
-                            <RoleView RequireOwner="true" Owner="tournament.OrganizerId">
-                                <a href="tournaments/@tournament.Id/teams">Zgłoszenia</a>
-                            </RoleView>
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+    @* Lista jest sortowana po dyscyplinie, więc każda grupa to ciągły fragment: osobna tabela z nagłówkiem. *@
+    @foreach (var group in items.GroupBy(t => t.Discipline))
+    {
+        <section class="tp-discipline-group mb-5">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <span class="tp-discipline-badge"><DisciplineIcon Code="@group.Key" Size="26" /></span>
+                <h2 class="h5 mb-0">@DisciplineCatalog.NameOf(group.Key)</h2>
+            </div>
 
-    <div class="d-flex justify-content-between align-items-center">
-        <button class="btn btn-outline-secondary" disabled="@(currentPage <= 1)" @onclick="PreviousPageAsync">Poprzednia</button>
-        <span>Strona @currentPage z @TotalPages() (łącznie: @pageResult.TotalCount)</span>
-        <button class="btn btn-outline-secondary" disabled="@(currentPage >= TotalPages())" @onclick="NextPageAsync">Następna</button>
-    </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nazwa</th>
+                            <th>System rozgrywek</th>
+                            <th>Termin rozpoczęcia</th>
+                            <th>Limit drużyn</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tournament in group)
+                        {
+                            <tr>
+                                <td>@tournament.Name</td>
+                                <td>@FormatName(tournament.Format)</td>
+                                <td>@tournament.StartsAt.ToLocalTime().ToString("g")</td>
+                                <td>@tournament.MaxTeams</td>
+                                <td>
+                                    <div class="d-flex gap-3 flex-wrap">
+                                        <a href="tournaments/@tournament.Id/schedule">Terminarz</a>
+                                        @if (tournament.Format == TournamentFormat.Cup)
+                                        {
+                                            <a href="tournaments/@tournament.Id/bracket">Drabinka</a>
+                                        }
+                                        else
+                                        {
+                                            <a href="tournaments/@tournament.Id/standings">Tabela</a>
+                                            @if (tournament.Format == TournamentFormat.GroupsAndCup)
+                                            {
+                                                <a href="tournaments/@tournament.Id/bracket">Drabinka</a>
+                                            }
+                                        }
+                                        <RoleView RequireOwner="true" Owner="tournament.OrganizerId">
+                                            <a href="tournaments/@tournament.Id/teams">Zgłoszenia</a>
+                                        </RoleView>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+
+    @if (HasMore)
+    {
+        <div @ref="sentinel" class="tp-sentinel" aria-hidden="true"></div>
+    }
+
+    @if (isLoading)
+    {
+        <p class="text-center text-muted"><em>Ładowanie kolejnych turniejów...</em></p>
+    }
 }
 
 @code {
-    private const int PageSize = 10;
+    private const int PageSize = 20;
 
-    private PagedResponse<TournamentResponse>? pageResult;
+    private readonly List<TournamentResponse> items = [];
     private string searchText = string.Empty;
     private string appliedSearch = string.Empty;
-    private int currentPage = 1;
-    private bool isLoading = true;
+    private int nextPage = 1;
+    private int totalCount;
+    private bool isLoading;
     private bool loadFailed;
+    private ElementReference sentinel;
+    private DotNetObjectReference<Tournaments>? dotNetRef;
+    private bool isObserving;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private bool HasMore => !loadFailed && items.Count < totalCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMoreAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!HasMore)
+        {
+            return;
+        }
+
+        dotNetRef ??= DotNetObjectReference.Create(this);
+        isObserving = true;
+        await JS.InvokeVoidAsync("tpInfiniteScroll.observe", sentinel, dotNetRef);
+    }
 
     private async Task SearchAsync()
     {
         appliedSearch = searchText.Trim();
-        currentPage = 1;
-        await LoadAsync();
-    }
-
-    private async Task PreviousPageAsync()
-    {
-        currentPage--;
-        await LoadAsync();
-    }
-
-    private async Task NextPageAsync()
-    {
-        currentPage++;
-        await LoadAsync();
-    }
-
-    private async Task LoadAsync()
-    {
-        isLoading = true;
+        items.Clear();
+        nextPage = 1;
+        totalCount = 0;
         loadFailed = false;
-
-        pageResult = await TournamentApi.GetTournamentPageAsync(currentPage, PageSize, appliedSearch);
-        loadFailed = pageResult is null;
-
-        isLoading = false;
+        await LoadMoreAsync();
     }
 
-    private int TotalPages() =>
-        pageResult is null || pageResult.TotalCount == 0 ? 1 : (int)Math.Ceiling(pageResult.TotalCount / (double)PageSize);
+    // Wywoływane z JS, gdy znacznik na końcu listy wjedzie w widok.
+    [JSInvokable]
+    public async Task OnReachEnd()
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadMoreAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (isLoading || (nextPage > 1 && items.Count >= totalCount))
+        {
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var page = await TournamentApi.GetTournamentPageAsync(nextPage, PageSize, appliedSearch);
+            if (page is null)
+            {
+                loadFailed = true;
+                return;
+            }
+
+            items.AddRange(page.Items);
+            totalCount = page.TotalCount;
+            nextPage++;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
 
     private static string FormatName(TournamentFormat format) => format switch
     {
         TournamentFormat.League => "Liga",
         TournamentFormat.Cup => "Puchar",
+        TournamentFormat.GroupsAndCup => "Grupy + puchar",
         _ => format.ToString()
     };
+
+    public async ValueTask DisposeAsync()
+    {
+        dotNetRef?.Dispose();
+
+        // JS nie może być wywołane podczas renderowania statycznego, więc odłączamy tylko, gdy obserwacja działała.
+        if (!isObserving)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("tpInfiniteScroll.disconnect");
+        }
+        catch (JSDisconnectedException)
+        {
+            // Obwód już zamknięty, nic do odłączania.
+        }
+    }
 }

@@ -11,7 +11,11 @@ public class Tournament
     public TournamentFormat Format { get; set; } = TournamentFormat.Cup;
     public DateTimeOffset StartsAt { get; set; }
     public int MaxTeams { get; set; } = 16;
-    public bool IsStarted { get; private set; }
+    public TournamentStatus Status { get; private set; } = TournamentStatus.Draft;
+
+    /// <summary>Turniej rozpoczęty (w trakcie albo zakończony). Blokuje zmiany formatu i punktacji.</summary>
+    public bool IsStarted => Status is TournamentStatus.InProgress or TournamentStatus.Finished;
+
     public Guid? OrganizerId { get; set; }
     public ScoringRules ScoringRules { get; private set; } = ScoringRules.DefaultCup;
 
@@ -31,7 +35,7 @@ public class Tournament
         Format = TournamentFormat.Cup;
         StartsAt = DateTimeOffset.UtcNow;
         MaxTeams = 16;
-        IsStarted = false;
+        Status = TournamentStatus.Draft;
         ScoringRules = ScoringRules.DefaultFor(Format);
     }
 
@@ -61,10 +65,22 @@ public class Tournament
         StartsAt = startsAt;
         MaxTeams = maxTeams;
         OrganizerId = organizerId;
-        IsStarted = false;
+        Status = TournamentStatus.Draft;
         ScoringRules = scoringRules ?? ScoringRules.DefaultFor(format);
     }
 
+    /// <summary>Szkic → Zapisy: drużyny mogą się zgłaszać.</summary>
+    public void OpenRegistration()
+    {
+        if (Status != TournamentStatus.Draft)
+        {
+            throw new BusinessRuleException("Zapisy można otworzyć tylko dla turnieju w szkicu.");
+        }
+
+        Status = TournamentStatus.RegistrationOpen;
+    }
+
+    /// <summary>Szkic lub Zapisy → W trakcie. Od tej chwili format i punktacja są zablokowane.</summary>
     public void Start()
     {
         if (IsStarted)
@@ -72,7 +88,28 @@ public class Tournament
             throw new BusinessRuleException("Turniej został już rozpoczęty.");
         }
 
-        IsStarted = true;
+        Status = TournamentStatus.InProgress;
+    }
+
+    /// <summary>
+    /// W trakcie → Zakończony, gdy wszystkie mecze turnieju są rozegrane (bez wolnych losów i anulowanych).
+    /// Zwraca true, jeśli turniej właśnie się zakończył.
+    /// </summary>
+    public bool CompleteIfAllMatchesFinished(IEnumerable<Match> matches)
+    {
+        if (Status != TournamentStatus.InProgress)
+        {
+            return false;
+        }
+
+        var relevant = matches.Where(m => !m.IsBye && m.Status != MatchStatus.Cancelled).ToList();
+        if (relevant.Count == 0 || relevant.Any(m => m.Status != MatchStatus.Finished))
+        {
+            return false;
+        }
+
+        Status = TournamentStatus.Finished;
+        return true;
     }
 
     /// <summary>
@@ -81,7 +118,10 @@ public class Tournament
     /// </summary>
     public int ActiveTeamsCount => Teams.Count(team => team.Status != TeamRegistrationStatus.Rejected);
 
-    public bool CanRegisterTeam() => !IsStarted && ActiveTeamsCount < MaxTeams;
+    // Zgłoszenia są otwarte w szkicu i w zapisach. Szkic nie blokuje zgłoszeń, żeby istniejące przepływy (np. testy
+    // i szybkie turnieje) działały bez dodatkowego kroku. Blokują je dopiero: start i zakończenie turnieju.
+    public bool CanRegisterTeam() =>
+        Status is TournamentStatus.Draft or TournamentStatus.RegistrationOpen && ActiveTeamsCount < MaxTeams;
 
     /// <summary>
     /// Zwraca powód, dla którego turniej nie przyjmuje zgłoszeń w podanej chwili, albo null, gdy zgłoszenia są otwarte.

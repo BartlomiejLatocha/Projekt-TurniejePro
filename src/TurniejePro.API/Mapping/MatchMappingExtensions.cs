@@ -37,13 +37,14 @@ public static class MatchMappingExtensions
             match.Id,
             match.Round,
             match.Position,
-            match.HomeTeam is not null ? new MatchTeamResponse(match.HomeTeam.Id, match.HomeTeam.Name) : null,
-            match.AwayTeam is not null ? new MatchTeamResponse(match.AwayTeam.Id, match.AwayTeam.Name) : null,
+            match.HomeTeam is not null ? new MatchTeamResponse(match.HomeTeam.Id, match.HomeTeam.Name, match.HomeTeam.HasLogo) : null,
+            match.AwayTeam is not null ? new MatchTeamResponse(match.AwayTeam.Id, match.AwayTeam.Name, match.AwayTeam.HasLogo) : null,
             match.HomeScore,
             match.AwayScore,
             (ContractMatchStatus)match.Status,
             match.IsBye,
-            match.ScheduledAt
+            match.ScheduledAt,
+            match.IsGroupStage ? match.HomeTeam?.GroupNumber ?? match.AwayTeam?.GroupNumber : null
         );
     }
 

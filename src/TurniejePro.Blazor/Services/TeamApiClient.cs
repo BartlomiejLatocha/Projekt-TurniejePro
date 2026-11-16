@@ -40,6 +40,46 @@ public sealed class TeamApiClient(HttpClient http)
     }
 
     /// <summary>
+    /// Wysyła logo drużyny (PNG lub JPG). Wymaga tokenu kapitana albo organizatora turnieju.
+    /// </summary>
+    public async Task<TeamRegistrationResult> UploadLogoAsync(
+        Guid teamId,
+        byte[] data,
+        string contentType,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(data);
+        file.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        form.Add(file, "file", contentType == "image/png" ? "logo.png" : "logo.jpg");
+
+        using var message = new HttpRequestMessage(HttpMethod.Put, $"api/v1/teams/{teamId}/logo")
+        {
+            Content = form
+        };
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await http.SendAsync(message, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return TeamRegistrationResult.Failure(await ApiError.ReadMessageAsync(response, cancellationToken));
+            }
+
+            var team = await response.Content.ReadFromJsonAsync<TeamResponse>(cancellationToken);
+            return team is null
+                ? TeamRegistrationResult.Failure("Serwer zwrócił pustą odpowiedź.")
+                : TeamRegistrationResult.Success(team);
+        }
+        catch (HttpRequestException)
+        {
+            return TeamRegistrationResult.Failure("Nie udało się połączyć z serwerem API.");
+        }
+    }
+
+    /// <summary>
     /// Zwraca zgłoszenia drużyn do turnieju. Przy błędzie połączenia zwraca null.
     /// </summary>
     public async Task<IReadOnlyList<TeamResponse>?> GetTeamsAsync(Guid tournamentId, CancellationToken cancellationToken = default)

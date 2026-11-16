@@ -48,6 +48,42 @@ public sealed class TournamentApiClient(HttpClient http)
     }
 
     /// <summary>
+    /// Szkic → Zapisy. Wymaga tokenu organizatora.
+    /// </summary>
+    public Task<TournamentCreationResult> OpenRegistrationAsync(Guid tournamentId, string accessToken, CancellationToken cancellationToken = default) =>
+        SendStatusChangeAsync($"api/v1/tournaments/{tournamentId}/open-registration", accessToken, cancellationToken);
+
+    /// <summary>
+    /// Rozpoczyna turniej (W trakcie). Wymaga tokenu organizatora.
+    /// </summary>
+    public Task<TournamentCreationResult> StartTournamentAsync(Guid tournamentId, string accessToken, CancellationToken cancellationToken = default) =>
+        SendStatusChangeAsync($"api/v1/tournaments/{tournamentId}/start", accessToken, cancellationToken);
+
+    private async Task<TournamentCreationResult> SendStatusChangeAsync(string url, string accessToken, CancellationToken cancellationToken)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Patch, url);
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await http.SendAsync(message, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return TournamentCreationResult.Failure(await ApiError.ReadMessageAsync(response, cancellationToken));
+            }
+
+            var tournament = await response.Content.ReadFromJsonAsync<TournamentDetailsResponse>(cancellationToken);
+            return tournament is null
+                ? TournamentCreationResult.Failure("Serwer zwrócił pustą odpowiedź.")
+                : TournamentCreationResult.Success(tournament);
+        }
+        catch (HttpRequestException)
+        {
+            return TournamentCreationResult.Failure("Nie udało się połączyć z serwerem API.");
+        }
+    }
+
+    /// <summary>
     /// Zwraca terminarz turnieju (publiczny endpoint). Przy błędzie zwraca komunikat z API albo informację o połączeniu.
     /// </summary>
     public async Task<ScheduleLoadResult> GetScheduleAsync(Guid tournamentId, CancellationToken cancellationToken = default)

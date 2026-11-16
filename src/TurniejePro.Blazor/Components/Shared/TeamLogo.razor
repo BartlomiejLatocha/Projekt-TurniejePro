@@ -1,0 +1,29 @@
+@inject IConfiguration Configuration
+
+@if (HasLogo)
+{
+    <img class="tp-team-logo" src="@LogoUrl" width="@Size" height="@Size" alt="Logo: @Name" loading="lazy" />
+}
+else
+{
+    <span class="tp-team-logo tp-team-logo-fallback" style="width: @(Size)px; height: @(Size)px; font-size: @(Size * 0.42)px;" aria-hidden="true">@Initial</span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid TeamId { get; set; }
+
+    [Parameter]
+    public bool HasLogo { get; set; }
+
+    [Parameter]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Wysokość i szerokość logo w pikselach.</summary>
+    [Parameter]
+    public int Size { get; set; } = 28;
+
+    private string LogoUrl => $"{Configuration["Api:BaseUrl"]?.TrimEnd('/')}/api/v1/teams/{TeamId}/logo";
+
+    private string Initial => string.IsNullOrWhiteSpace(Name) ? "?" : Name.Trim()[..1].ToUpperInvariant();
+}

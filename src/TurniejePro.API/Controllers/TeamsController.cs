@@ -272,4 +272,137 @@ public class TeamsController : ControllerBase
         Domain.Enums.RegistrationBlockReason.LimitReached => $"Osiągnięto maksymalny limit zarejestrowanych drużyn ({maxTeams}).",
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Nieznany powód blokady zgłoszeń.")
     };
+
+    /// <summary>
+    /// Wysyła logo drużyny (PNG lub JPG, najwyżej 1 MB). Może je zmienić kapitan drużyny albo organizator turnieju.
+    /// </summary>
+    [HttpPut("{id:guid}/logo")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(Team.MaxLogoBytes + 4096)]
+    [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UploadLogo(Guid id, IFormFile? file, CancellationToken cancellationToken)
+    {
+        var team = await _unitOfWork.Teams.GetWithPlayersAsync(id, cancellationToken);
+        if (team is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono drużyny",
+                Detail = $"Drużyna o identyfikatorze '{id}' nie istnieje."
+            });
+        }
+
+        var tournament = await _unitOfWork.Tournaments.GetByIdAsync(team.TournamentId, cancellationToken);
+        if (tournament is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono turnieju",
+                Detail = "Turniej powiązany z tą drużyną nie istnieje."
+            });
+        }
+
+        var isCaptain = Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var userId)
+            && team.CaptainId == userId;
+        if (!isCaptain)
+        {
+            var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+            if (!authorization.Succeeded)
+            {
+                return Forbid();
+            }
+        }
+
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Brak pliku logo",
+                Detail = "Dołącz plik logo (PNG lub JPG)."
+            });
+        }
+
+        if (file.Length > Team.MaxLogoBytes)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Logo jest za duże",
+                Detail = "Logo może mieć najwyżej 1 MB."
+            });
+        }
+
+        var data = await ReadAllAsync(file, cancellationToken);
+        var contentType = DetectImageType(data);
+        if (contentType is null)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Nieobsługiwany format",
+                Detail = "Logo musi być plikiem PNG lub JPG."
+            });
+        }
+
+        team.SetLogo(contentType, data);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Ok(team.ToResponse());
+    }
+
+    /// <summary>
+    /// Pobiera logo drużyny jako obraz (PNG lub JPG).
+    /// </summary>
+    [HttpGet("{id:guid}/logo")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetLogo(Guid id, CancellationToken cancellationToken)
+    {
+        var team = await _unitOfWork.Teams.GetByIdAsync(id, cancellationToken);
+        if (team?.Logo is null || team.LogoContentType is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Brak logo",
+                Detail = "Drużyna nie ma przesłanego logo."
+            });
+        }
+
+        Response.Headers.CacheControl = "public,max-age=300";
+        return File(team.Logo, team.LogoContentType);
+    }
+
+    private static async Task<byte[]> ReadAllAsync(IFormFile file, CancellationToken cancellationToken)
+    {
+        await using var stream = file.OpenReadStream();
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory, cancellationToken);
+        return memory.ToArray();
+    }
+
+    // Typ rozpoznajemy po sygnaturze pliku, a nie po nagłówku przysłanym przez klienta.
+    private static string? DetectImageType(byte[] data)
+    {
+        if (data.Length >= 4 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47)
+        {
+            return "image/png";
+        }
+
+        if (data.Length >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+        {
+            return "image/jpeg";
+        }
+
+        return null;
+    }
 }

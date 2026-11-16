@@ -57,7 +57,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             {
                 // Bezpośrednie wstawienie SQL omija nadpisywanie Guid.Empty przez EF Core
                 db.Database.ExecuteSqlRaw(@"
-                    INSERT INTO Tournaments (Id, Name, Discipline, Format, StartsAt, MaxTeams, IsStarted)
+                    INSERT INTO Tournaments (Id, Name, Discipline, Format, StartsAt, MaxTeams, Status)
                     VALUES ('00000000-0000-0000-0000-000000000000', 'Turniej Testowy', 'E-Sport', 0, '2026-01-01 00:00:00', 16, 0);
                 ");
             }

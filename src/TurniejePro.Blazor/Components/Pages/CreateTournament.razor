@@ -45,7 +45,12 @@ else
 
         <div class="mb-3">
             <label class="form-label" for="tournament-discipline">Dyscyplina</label>
-            <InputText id="tournament-discipline" class="form-control" placeholder="np. piłka nożna, siatkówka, e-sport" @bind-Value="model.Discipline" />
+            <InputSelect id="tournament-discipline" class="form-select" @bind-Value="model.Discipline" @bind-Value:after="ApplyDisciplineDefaultsAsync">
+                @foreach (var discipline in DisciplineCatalog.All)
+                {
+                    <option value="@discipline.Code">@discipline.Name</option>
+                }
+            </InputSelect>
             <ValidationMessage For="() => model.Discipline" class="text-danger" />
         </div>
 
@@ -54,6 +59,7 @@ else
             <InputSelect id="tournament-format" class="form-select" @bind-Value="model.Format">
                 <option value="@TournamentFormat.League">Liga (każdy z każdym)</option>
                 <option value="@TournamentFormat.Cup">Puchar (drabinka)</option>
+                <option value="@TournamentFormat.GroupsAndCup">Grupy + puchar (faza grupowa, potem drabinka)</option>
             </InputSelect>
             <ValidationMessage For="() => model.Format" class="text-danger" />
         </div>
@@ -68,6 +74,39 @@ else
             <label class="form-label" for="tournament-max">Limit drużyn</label>
             <InputNumber id="tournament-max" class="form-control" @bind-Value="model.MaxTeams" />
             <ValidationMessage For="() => model.MaxTeams" class="text-danger" />
+        </div>
+
+        <h2 class="h5 mt-4">Punktacja</h2>
+        <p class="text-muted small">Wartości domyślne pochodzą z wybranej dyscypliny. Możesz je zmienić.</p>
+
+        <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Gotowe wzorce punktacji">
+            @foreach (var preset in ScoringPresets)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="@preset.Description" @onclick="() => ApplyPreset(preset)">@preset.Label</button>
+            }
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="form-label" for="scoring-win">Punkty za wygraną</label>
+                <InputNumber id="scoring-win" class="form-control" @bind-Value="model.PointsForWin" />
+                <ValidationMessage For="() => model.PointsForWin" class="text-danger" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="scoring-draw">Punkty za remis</label>
+                <InputNumber id="scoring-draw" class="form-control" @bind-Value="model.PointsForDraw" disabled="@(!model.AllowDraws)" />
+                <ValidationMessage For="() => model.PointsForDraw" class="text-danger" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="scoring-loss">Punkty za porażkę</label>
+                <InputNumber id="scoring-loss" class="form-control" @bind-Value="model.PointsForLoss" />
+                <ValidationMessage For="() => model.PointsForLoss" class="text-danger" />
+            </div>
+        </div>
+
+        <div class="form-check mb-4">
+            <InputCheckbox id="scoring-draws" class="form-check-input" @bind-Value="model.AllowDraws" />
+            <label class="form-check-label" for="scoring-draws">Remisy są dozwolone</label>
         </div>
 
         <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Utwórz turniej</button>
@@ -114,7 +153,8 @@ else
         {
             // Termin z formularza traktujemy jako czas lokalny i wysyłamy w UTC, zgodnie z kontraktem API.
             var startsAt = new DateTimeOffset(DateTime.SpecifyKind(model.StartsAt, DateTimeKind.Local)).ToUniversalTime();
-            var request = new CreateTournamentRequest(model.Name, model.Discipline, model.Format, startsAt, model.MaxTeams);
+            var scoring = new ScoringRulesRequest(model.PointsForWin, model.PointsForDraw, model.PointsForLoss, model.AllowDraws);
+            var request = new CreateTournamentRequest(model.Name, model.Discipline, model.Format, startsAt, model.MaxTeams, scoring);
 
             var result = await TournamentApi.CreateTournamentAsync(request, accessToken);
             if (result.Tournament is { } tournament)
@@ -135,10 +175,54 @@ else
 
     private static TournamentForm CreateDefaultForm() => new()
     {
+        Discipline = DisciplineCatalog.All[0].Code,
         Format = TournamentFormat.League,
         StartsAt = DateTime.Now.AddDays(14).Date.AddHours(18),
-        MaxTeams = 8
+        MaxTeams = 8,
+        PointsForWin = DisciplineCatalog.All[0].PointsForWin,
+        PointsForDraw = DisciplineCatalog.All[0].PointsForDraw,
+        PointsForLoss = DisciplineCatalog.All[0].PointsForLoss,
+        AllowDraws = DisciplineCatalog.All[0].AllowDraws
     };
+
+    // Po zmianie dyscypliny wypełniamy punktację wartościami z katalogu. Organizator może je potem poprawić.
+    private Task ApplyDisciplineDefaultsAsync()
+    {
+        if (DisciplineCatalog.Find(model.Discipline) is { } definition)
+        {
+            model.PointsForWin = definition.PointsForWin;
+            model.PointsForDraw = definition.PointsForDraw;
+            model.PointsForLoss = definition.PointsForLoss;
+            model.AllowDraws = definition.AllowDraws;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    // Gotowe wzorce tylko wypełniają pola formularza. Nie są zapisywane w bazie.
+    private static readonly ScoringPreset[] ScoringPresets =
+    [
+        new("Standard 3-1-0", "Wygrana 3, remis 1, porażka 0. Remisy dozwolone.", 3, 1, 0, true),
+        new("Bez remisów 3-0-0", "Wygrana 3, porażka 0. Remis niedozwolony (np. dogrywka).", 3, 0, 0, false),
+        new("Dwa punkty 2-1-0", "Wygrana 2, remis 1, porażka 0. Remisy dozwolone.", 2, 1, 0, true),
+        new("Pucharowy", "Wygrana 3, porażka 0. Bez remisów, jak w drabince.", 3, 0, 0, false)
+    ];
+
+    private void ApplyPreset(ScoringPreset preset)
+    {
+        model.PointsForWin = preset.PointsForWin;
+        model.PointsForDraw = preset.PointsForDraw;
+        model.PointsForLoss = preset.PointsForLoss;
+        model.AllowDraws = preset.AllowDraws;
+    }
+
+    private sealed record ScoringPreset(
+        string Label,
+        string Description,
+        int PointsForWin,
+        int PointsForDraw,
+        int PointsForLoss,
+        bool AllowDraws);
 
     private sealed class TournamentForm
     {
@@ -157,5 +241,16 @@ else
 
         [Range(2, 128, ErrorMessage = "Limit drużyn musi być z zakresu 2–128.")]
         public int MaxTeams { get; set; }
+
+        [Range(0, 99, ErrorMessage = "Punkty muszą być z zakresu 0–99.")]
+        public int PointsForWin { get; set; }
+
+        [Range(0, 99, ErrorMessage = "Punkty muszą być z zakresu 0–99.")]
+        public int PointsForDraw { get; set; }
+
+        [Range(0, 99, ErrorMessage = "Punkty muszą być z zakresu 0–99.")]
+        public int PointsForLoss { get; set; }
+
+        public bool AllowDraws { get; set; } = true;
     }
 }

@@ -8,4 +8,5 @@ public sealed record TeamResponse(
     string? ContactEmail,
     TeamRegistrationStatus Status,
     DateTimeOffset RegisteredAt,
-    IReadOnlyList<PlayerResponse> Players);
+    IReadOnlyList<PlayerResponse> Players,
+    bool HasLogo = false);

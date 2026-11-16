@@ -35,7 +35,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
         AuthenticateAs(Roles.User);
         var request = new CreateTournamentRequest(
             Name: "E-Sport Champions League",
-            Discipline: "Valorant",
+            Discipline: "esports",
             Format: TournamentFormat.Cup,
             StartsAt: DateTimeOffset.UtcNow.AddDays(7),
             MaxTeams: 16
@@ -61,7 +61,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
         AuthenticateAs(Roles.User);
         var request = new CreateTournamentRequest(
             Name: "AB", // Za krótka nazwa (min. 3 znaki)
-            Discipline: "LOL",
+            Discipline: "esports",
             Format: TournamentFormat.Cup,
             StartsAt: DateTimeOffset.UtcNow,
             MaxTeams: 1
@@ -97,7 +97,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
         AuthenticateAs(Roles.User);
         var createRequest = new CreateTournamentRequest(
             Name: "Turniej do edycji",
-            Discipline: "Szachy",
+            Discipline: "chess",
             Format: TournamentFormat.Cup,
             StartsAt: DateTimeOffset.UtcNow.AddDays(10),
             MaxTeams: 8
@@ -109,7 +109,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
 
         var updateRequest = new UpdateTournamentRequest(
             Name: "Turniej po edycji",
-            Discipline: "Szachy Błyskawiczne",
+            Discipline: "chess",
             Format: TournamentFormat.Cup,
             StartsAt: DateTimeOffset.UtcNow.AddDays(12),
             MaxTeams: 16
@@ -134,7 +134,7 @@ public class TournamentsIntegrationTests : IClassFixture<CustomWebApplicationFac
         AuthenticateAs(Roles.User);
         var createRequest = new CreateTournamentRequest(
             Name: "Turniej do usunięcia",
-            Discipline: "Fifa",
+            Discipline: "esports",
             Format: TournamentFormat.Cup,
             StartsAt: DateTimeOffset.UtcNow.AddDays(5),
             MaxTeams: 4

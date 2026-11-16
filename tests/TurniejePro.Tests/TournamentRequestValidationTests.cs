@@ -29,7 +29,7 @@ public class TournamentRequestValidationTests
 
     public static TheoryData<RequestKind, int> ValidMaxTeams => ForBothKinds(2, 3, 127, 128);
 
-    public static TheoryData<RequestKind, int> UndefinedFormats => ForBothKinds(0, 3, 99, -1, int.MaxValue);
+    public static TheoryData<RequestKind, int> UndefinedFormats => ForBothKinds(0, 4, 99, -1, int.MaxValue);
 
     public static TheoryData<RequestKind, TournamentFormat> DefinedFormats =>
         ForBothKinds(TournamentFormat.League, TournamentFormat.Cup);

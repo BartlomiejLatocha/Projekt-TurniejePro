@@ -21,6 +21,9 @@ public class Match
     public int? HomeScore { get; set; }
     public int? AwayScore { get; set; }
     public MatchStatus Status { get; private set; } = MatchStatus.Scheduled;
+
+    /// <summary>Mecz fazy grupowej (liga w grupie). Mecze drabinki mają wartość false.</summary>
+    public bool IsGroupStage { get; set; }
     public DateTimeOffset? ScheduledAt { get; set; }
 
     /// <summary>

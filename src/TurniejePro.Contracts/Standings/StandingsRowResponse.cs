@@ -25,4 +25,6 @@ public sealed record StandingsRowResponse(
     int GoalsFor,
     int GoalsAgainst,
     int GoalDifference,
-    int Points);
+    int Points,
+    bool HasLogo = false,
+    int? Group = null);

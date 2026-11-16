@@ -19,7 +19,8 @@ public static class TeamMappingExtensions
             team.ContactEmail,
             (Contracts.Teams.TeamRegistrationStatus)team.Status,
             team.RegisteredAt,
-            players);
+            players,
+            team.HasLogo);
     }
 
     public static PlayerResponse ToResponse(this Player player)

@@ -18,7 +18,7 @@ else
     @if (tournament is not null)
     {
         <h2 class="h4">@tournament.Name</h2>
-        <p class="text-muted">@tournament.Discipline</p>
+        <p class="text-muted d-flex align-items-center gap-2"><DisciplineIcon Code="@tournament.Discipline" Size="18" />@DisciplineCatalog.NameOf(tournament.Discipline)</p>
     }
 
     @if (errorMessage is not null)
@@ -26,9 +26,12 @@ else
         <div class="alert alert-warning" role="status">@errorMessage</div>
     }
 
-    <p><a href="tournaments/@TournamentId/standings">Tabela ligowa</a></p>
+    @if (schedule?.Format != TournamentFormat.Cup)
+    {
+        <p><a href="tournaments/@TournamentId/standings">Tabela ligowa</a></p>
+    }
 
-    @if (schedule?.Format == TournamentFormat.Cup)
+    @if (schedule is not null && schedule.Format != TournamentFormat.League)
     {
         <p><a href="tournaments/@TournamentId/bracket">Drabinka pucharowa</a></p>
     }
@@ -41,7 +44,7 @@ else
     {
         @foreach (var round in schedule.Rounds)
         {
-            <h3 class="h5 mt-4">@RoundTitle(schedule.Format) @round.Round</h3>
+            <h3 class="h5 mt-4">@(round.Matches.Any(m => m.Group is not null) ? "Kolejka" : RoundTitle(schedule.Format)) @round.Round</h3>
 
             <div class="table-responsive">
                 <table class="table align-middle">
@@ -58,10 +61,22 @@ else
                         @foreach (var match in round.Matches)
                         {
                             <tr>
-                                <td>@match.Position</td>
-                                <td>@HomeName(match)</td>
+                                <td>@match.Position@(match.Group is { } group ? $" · grupa {GroupLetter(group)}" : "")</td>
+                                <td>
+                                    @if (match.HomeTeam is { } home)
+                                    {
+                                        <TeamLogo TeamId="@home.Id" HasLogo="@home.HasLogo" Name="@home.Name" Size="22" />
+                                    }
+                                    @HomeName(match)
+                                </td>
                                 <td class="text-center">@ScoreText(match)</td>
-                                <td>@AwayName(match)</td>
+                                <td>
+                                    @if (match.AwayTeam is { } away)
+                                    {
+                                        <TeamLogo TeamId="@away.Id" HasLogo="@away.HasLogo" Name="@away.Name" Size="22" />
+                                    }
+                                    @AwayName(match)
+                                </td>
                                 <td>@StatusName(match.Status)</td>
                             </tr>
                         }
@@ -94,6 +109,8 @@ else
 
     private static string RoundTitle(TournamentFormat format) =>
         format == TournamentFormat.League ? "Kolejka" : "Runda";
+
+    private static string GroupLetter(int group) => ((char)('A' + group - 1)).ToString();
 
     private static string HomeName(MatchResponse match) => match.HomeTeam?.Name ?? "Do ustalenia";
 

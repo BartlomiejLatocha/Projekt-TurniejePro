@@ -5,4 +5,4 @@ namespace TurniejePro.Contracts.Matches;
 /// </summary>
 /// <param name="Id">Identyfikator drużyny.</param>
 /// <param name="Name">Nazwa drużyny.</param>
-public sealed record MatchTeamResponse(Guid Id, string Name);
+public sealed record MatchTeamResponse(Guid Id, string Name, bool HasLogo = false);

@@ -272,6 +272,9 @@ namespace TurniejePro.Data.Migrations
                     b.Property<bool>("IsBye")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsGroupStage")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Position")
                         .HasColumnType("INTEGER");
 
@@ -336,8 +339,19 @@ namespace TurniejePro.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("GroupNumber")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsAccepted")
                         .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("Logo")
+                        .HasMaxLength(1048576)
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("LogoContentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -376,9 +390,6 @@ namespace TurniejePro.Data.Migrations
                     b.Property<int>("Format")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsStarted")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("MaxTeams")
                         .HasColumnType("INTEGER");
 
@@ -392,6 +403,11 @@ namespace TurniejePro.Data.Migrations
 
                     b.Property<DateTimeOffset>("StartsAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
 
                     b.HasKey("Id");
 

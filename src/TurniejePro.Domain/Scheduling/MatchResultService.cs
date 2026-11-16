@@ -49,11 +49,15 @@ public class MatchResultService
             throw new MatchResultConflictException("Obie drużyny muszą być wyznaczone, aby wprowadzić wynik meczu.");
         }
 
-        // 5. Remis -> 400. W pucharze remisu nie ma, bo drabinka potrzebuje zwycięzcy, a w pozostałych turniejach remis
-        // może być wyłączony w zasadach punktacji (ScoringRules.AllowDraws).
+        // Mecz drabinki (pucharu albo fazy pucharowej) musi mieć zwycięzcę. Mecze grup i ligi podlegają zasadom punktacji.
+        var isKnockout = tournament.Format == TournamentFormat.Cup
+            || (tournament.Format == TournamentFormat.GroupsAndCup && !match.IsGroupStage);
+
+        // 5. Remis -> 400. W drabince remisu nie ma, bo drabinka potrzebuje zwycięzcy; w lidze i grupach remis może być
+        // wyłączony w zasadach punktacji (ScoringRules.AllowDraws).
         if (homeScore == awayScore)
         {
-            if (tournament.Format == TournamentFormat.Cup)
+            if (isKnockout)
             {
                 throw new BusinessRuleException("W fazie pucharowej mecz nie może zakończyć się remisowo.");
             }
@@ -66,12 +70,17 @@ public class MatchResultService
 
         Match? nextMatch = null;
 
+        // Drabinka to mecze pucharowe; mecze fazy grupowej do niej nie należą.
+        var knockoutMatches = tournament.Format == TournamentFormat.GroupsAndCup
+            ? matches.Where(m => !m.IsGroupStage).ToList()
+            : matches;
+
         // 6. Faza pucharowa: sprawdzenie meczu następnej rundy -> 409. Miejsce zwycięzcy wskazuje jedna reguła awansu.
-        if (tournament.Format == TournamentFormat.Cup)
+        if (isKnockout)
         {
             var slot = KnockoutBracketAdvancer.GetNextSlot(match.Round, match.Position);
 
-            nextMatch = matches.FirstOrDefault(m => m.Round == slot.RoundNumber && m.Position == slot.Position);
+            nextMatch = knockoutMatches.FirstOrDefault(m => m.Round == slot.RoundNumber && m.Position == slot.Position);
 
             if (nextMatch is not null && nextMatch.Status != MatchStatus.Scheduled)
             {
@@ -80,7 +89,7 @@ public class MatchResultService
         }
 
         // Drabinka sprzed nowego wyniku: awans (także korekta wyniku) liczy KnockoutBracketAdvancer
-        var bracket = nextMatch is null ? null : MatchBracketMapper.ToBracket(matches);
+        var bracket = nextMatch is null ? null : MatchBracketMapper.ToBracket(knockoutMatches);
 
         // Ustawienie wyniku meczu
         match.SetResult(homeScore, awayScore);
@@ -91,11 +100,52 @@ public class MatchResultService
             var winnerId = homeScore > awayScore ? match.HomeTeamId : match.AwayTeamId;
 
             var advanced = KnockoutBracketAdvancer.AdvanceWinner(bracket, match.Round, match.Position, winnerId!.Value);
-            MatchBracketMapper.ApplyTeams(advanced, matches);
+            MatchBracketMapper.ApplyTeams(advanced, knockoutMatches);
+        }
+
+        // Ostatni mecz fazy grupowej: tworzymy drabinkę z najlepszych drużyn każdej grupy.
+        var knockoutCreated = false;
+        if (tournament.Format == TournamentFormat.GroupsAndCup && match.IsGroupStage)
+        {
+            knockoutCreated = await CreateKnockoutIfGroupStageFinishedAsync(tournament, matches, cancellationToken);
+        }
+
+        // Turniej kończy się, gdy zagrano wszystkie mecze. Po utworzeniu drabinki są w niej jeszcze nierozegrane mecze.
+        if (!knockoutCreated)
+        {
+            tournament.CompleteIfAllMatchesFinished(matches);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return match;
+    }
+
+    private async Task<bool> CreateKnockoutIfGroupStageFinishedAsync(
+        Tournament tournament,
+        IReadOnlyList<Match> matches,
+        CancellationToken cancellationToken)
+    {
+        // Drabinka powstaje raz: dopiero gdy wszystkie mecze grupowe są zakończone i jeszcze nie istnieje.
+        var groupMatches = matches.Where(m => m.IsGroupStage).ToList();
+        if (groupMatches.Any(m => m.Status != MatchStatus.Finished) || matches.Any(m => !m.IsGroupStage))
+        {
+            return false;
+        }
+
+        var teams = await _unitOfWork.Teams.GetByTournamentIdAndStatusAsync(
+            tournament.Id,
+            TeamRegistrationStatus.Accepted,
+            cancellationToken);
+
+        var firstKnockoutRound = groupMatches.Max(m => m.Round) + 1;
+        var knockout = GroupStage.BuildKnockout(tournament.Id, teams, groupMatches, tournament.ScoringRules, firstKnockoutRound);
+
+        foreach (var knockoutMatch in knockout)
+        {
+            await _unitOfWork.Matches.AddAsync(knockoutMatch, cancellationToken);
+        }
+
+        return true;
     }
 }
