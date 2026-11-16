@@ -17,7 +17,7 @@
 @if (!canRegister)
 {
     <div class="alert alert-warning" role="alert">
-        Zgłaszanie drużyn jest dostępne dla kapitanów i organizatorów. Zaloguj się na konto z odpowiednią rolą.
+        Zgłoszenie drużyny wymaga zalogowania. Zgłaszający zostaje kapitanem drużyny.
     </div>
 }
 else
@@ -124,7 +124,7 @@ else
     }
 
     private void UpdateAccess() =>
-        canRegister = Session.IsInAnyRole([RoleNames.Participant, RoleNames.Organizer]);
+        canRegister = Session.IsLoggedIn;
 
     private void AddPlayer() => model.Players.Add(new PlayerForm());
 

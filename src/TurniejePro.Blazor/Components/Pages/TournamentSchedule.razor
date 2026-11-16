@@ -33,7 +33,7 @@ else
         <p><a href="tournaments/@TournamentId/bracket">Drabinka pucharowa</a></p>
     }
 
-    <RoleView Roles="Organizer">
+    <RoleView RequireOwner="true" Owner="tournament?.OrganizerId">
         <p><a href="tournaments/@TournamentId/results">Wpisz wyniki (panel organizatora)</a></p>
     </RoleView>
 

@@ -13,7 +13,8 @@ public static class TournamentMappingExtensions
             tournament.Discipline,
             (Contracts.Tournaments.TournamentFormat)tournament.Format,
             tournament.StartsAt,
-            tournament.MaxTeams);
+            tournament.MaxTeams,
+            tournament.OrganizerId);
     }
 
     public static TournamentDetailsResponse ToDetailsResponse(this Tournament tournament)
