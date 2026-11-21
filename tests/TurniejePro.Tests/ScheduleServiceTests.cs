@@ -119,7 +119,7 @@ public class ScheduleServiceTests
         await Assert.ThrowsAsync<BusinessRuleException>(() => sut.GenerateScheduleAsync(tournamentId));
     }
 
-    private static List<Team> CreateTeams(Guid tournamentId, int count)
+    internal static List<Team> CreateTeams(Guid tournamentId, int count)
     {
         return Enumerable.Range(1, count)
             .Select(i =>

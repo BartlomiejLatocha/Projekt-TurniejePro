@@ -92,6 +92,38 @@ public class Tournament
     }
 
     /// <summary>
+    /// Ręczne rozpoczęcie turnieju (przycisk „Rozpocznij turniej”). Wymaga wygenerowanego terminarza, bo bez meczów
+    /// turnieju nie da się rozegrać, a po starcie nie można już akceptować zgłoszeń. Zwykle ręczny start nie jest
+    /// potrzebny: wygenerowanie terminarza rozpoczyna turniej samo. Wymaga wczytanych <see cref="Matches"/>.
+    /// </summary>
+    public void StartWithExistingSchedule()
+    {
+        if (Matches.Count == 0)
+        {
+            throw new BusinessRuleException("Turniej rozpoczyna się po wygenerowaniu terminarza. Najpierw wygeneruj terminarz.");
+        }
+
+        Start();
+    }
+
+    /// <summary>
+    /// W trakcie → Zapisy po usunięciu terminarza: organizator może znów rozpatrywać zgłoszenia i wygenerować
+    /// terminarz od nowa. W szkicu i w zapisach nic nie zmienia. Zakończonego turnieju nie można cofnąć.
+    /// </summary>
+    public void ReturnToRegistration()
+    {
+        if (Status == TournamentStatus.Finished)
+        {
+            throw new BusinessRuleException("Zakończonego turnieju nie można cofnąć do zapisów.");
+        }
+
+        if (Status == TournamentStatus.InProgress)
+        {
+            Status = TournamentStatus.RegistrationOpen;
+        }
+    }
+
+    /// <summary>
     /// W trakcie → Zakończony, gdy wszystkie mecze turnieju są rozegrane (bez wolnych losów i anulowanych).
     /// Zwraca true, jeśli turniej właśnie się zakończył.
     /// </summary>
@@ -148,19 +180,23 @@ public class Tournament
         return null;
     }
 
+    /// <summary>
+    /// Zmienia dane turnieju. Co wolno zmienić, zależy od statusu:
+    /// Szkic – wszystko; Zapisy – nazwę, termin rozpoczęcia i limit drużyn; W trakcie – tylko nazwę; Zakończony – nic.
+    /// Administrator (<paramref name="asAdmin"/>) pomija ograniczenia statusu, ale nie reguły spójności danych:
+    /// formatu nie zmieni nikt, gdy istnieje terminarz, a limit nie spadnie poniżej liczby zgłoszeń.
+    /// Pole przesłane bez zmian nie jest traktowane jako zmiana, więc klient może wysyłać cały formularz.
+    /// Formatu przy istniejącym terminarzu pilnuje <see cref="Matches"/>, więc turniej musi mieć wczytane mecze.
+    /// </summary>
     public void UpdateDetails(
         string name,
         string discipline,
         TournamentFormat format,
         DateTimeOffset startsAt,
         int maxTeams,
-        ScoringRules? scoringRules = null)
+        ScoringRules? scoringRules = null,
+        bool asAdmin = false)
     {
-        if (IsStarted)
-        {
-            throw new BusinessRuleException("Nie można modyfikować rozpoczętego turnieju.");
-        }
-
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException("Nazwa turnieju nie może być pusta.", nameof(name));
@@ -174,6 +210,51 @@ public class Tournament
         if (maxTeams < 2)
         {
             throw new ArgumentOutOfRangeException(nameof(maxTeams), "Turniej musi dopuszczać co najmniej 2 drużyny.");
+        }
+
+        var changed = new List<string>();
+        if (!string.Equals(Name, name, StringComparison.Ordinal))
+        {
+            changed.Add(FieldName);
+        }
+
+        if (!string.Equals(Discipline, discipline, StringComparison.OrdinalIgnoreCase))
+        {
+            changed.Add(FieldDiscipline);
+        }
+
+        if (Format != format)
+        {
+            changed.Add(FieldFormat);
+        }
+
+        // Tolerancja minuty: formularz może odesłać ten sam termin z inną precyzją (sekundy, milisekundy)
+        var startsAtChanged = (startsAt - StartsAt).Duration() >= TimeSpan.FromMinutes(1);
+        if (startsAtChanged)
+        {
+            changed.Add(FieldStartsAt);
+        }
+
+        if (MaxTeams != maxTeams)
+        {
+            changed.Add(FieldMaxTeams);
+        }
+
+        if (scoringRules is not null && scoringRules != ScoringRules)
+        {
+            changed.Add(FieldScoringRules);
+        }
+
+        EnsureCanChange(changed, asAdmin);
+
+        if (changed.Contains(FieldFormat) && Matches.Count > 0)
+        {
+            throw new BusinessRuleException("Nie można zmienić formatu turnieju, który ma terminarz. Najpierw usuń terminarz.");
+        }
+
+        if (startsAtChanged && startsAt <= DateTimeOffset.UtcNow)
+        {
+            throw new ArgumentException("Termin rozpoczęcia musi być w przyszłości.", nameof(startsAt));
         }
 
         if (maxTeams < ActiveTeamsCount)
@@ -197,15 +278,60 @@ public class Tournament
         MaxTeams = maxTeams;
     }
 
-    public void UpdateScoringRules(ScoringRules scoringRules)
+    /// <summary>
+    /// Zmienia punktację. Organizator może to zrobić tylko w szkicu (drużyny zapisują się na konkretne zasady),
+    /// administrator w każdym statusie (tabela przeliczy się z meczów według nowych zasad).
+    /// </summary>
+    public void UpdateScoringRules(ScoringRules scoringRules, bool asAdmin = false)
     {
         ArgumentNullException.ThrowIfNull(scoringRules);
 
-        if (IsStarted)
+        if (scoringRules != ScoringRules)
         {
-            throw new BusinessRuleException("Nie można modyfikować rozpoczętego turnieju.");
+            EnsureCanChange([FieldScoringRules], asAdmin);
         }
 
         ScoringRules = scoringRules;
+    }
+
+    // Nazwy pól w komunikatach dla użytkownika
+    private const string FieldName = "nazwa";
+    private const string FieldDiscipline = "dyscyplina";
+    private const string FieldFormat = "format";
+    private const string FieldStartsAt = "termin rozpoczęcia";
+    private const string FieldMaxTeams = "limit drużyn";
+    private const string FieldScoringRules = "punktacja";
+
+    /// <summary>
+    /// Pola, które organizator może zmienić w danym statusie. Szkic: wszystkie.
+    /// </summary>
+    private static string[]? EditableFieldsIn(TournamentStatus status) => status switch
+    {
+        TournamentStatus.Draft => null,
+        TournamentStatus.RegistrationOpen => [FieldName, FieldStartsAt, FieldMaxTeams],
+        TournamentStatus.InProgress => [FieldName],
+        _ => []
+    };
+
+    private void EnsureCanChange(List<string> changed, bool asAdmin)
+    {
+        if (asAdmin || changed.Count == 0 || EditableFieldsIn(Status) is not { } editable)
+        {
+            return;
+        }
+
+        var blocked = changed.Where(field => !editable.Contains(field)).ToList();
+        if (blocked.Count == 0)
+        {
+            return;
+        }
+
+        var statusName = Status == TournamentStatus.RegistrationOpen ? "Zapisy" : "W trakcie";
+
+        var allowed = editable.Length == 0
+            ? "Zakończonego turnieju nie można edytować."
+            : $"W statusie „{statusName}” można zmienić tylko: {string.Join(", ", editable)}.";
+
+        throw new BusinessRuleException($"{allowed} Zablokowane zmiany: {string.Join(", ", blocked)}.");
     }
 }

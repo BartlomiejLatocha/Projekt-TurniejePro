@@ -155,8 +155,41 @@ public class ScheduleService
             await _unitOfWork.Matches.AddAsync(match, cancellationToken);
         }
 
+        // 6. Terminarz rozpoczyna turniej: zapisy się zamykają, a format i punktacja zostają zablokowane (KAN-290).
+        // Turniej rozpoczęty wcześniej ręcznie (bez terminarza) zostaje w trakcie.
+        if (!tournament.IsStarted)
+        {
+            tournament.Start();
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return createdMatches;
+    }
+
+    /// <summary>
+    /// Usuwa terminarz, dopóki nie ma w nim żadnego wyniku, i cofa turniej do zapisów, żeby organizator mógł zmienić
+    /// skład drużyn i wygenerować terminarz od nowa. Wpisane wyniki chronią terminarz przed usunięciem (409).
+    /// </summary>
+    public async Task DeleteScheduleAsync(Guid tournamentId, CancellationToken cancellationToken = default)
+    {
+        var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken)
+            ?? throw new NotFoundException($"Nie odnaleziono turnieju o ID '{tournamentId}'.");
+
+        var matches = await _unitOfWork.Matches.GetByTournamentIdAsync(tournamentId, cancellationToken);
+        if (matches.Count == 0)
+        {
+            throw new NotFoundException($"Turniej o ID '{tournamentId}' nie posiada wygenerowanego terminarza do usunięcia.");
+        }
+
+        if (matches.Any(m => !m.IsBye && m.HomeScore is not null))
+        {
+            throw new ConflictException("Nie można usunąć terminarza, w którym są już wpisane wyniki.");
+        }
+
+        await _unitOfWork.Matches.DeleteByTournamentIdAsync(tournamentId, cancellationToken);
+        tournament.ReturnToRegistration();
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

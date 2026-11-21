@@ -359,6 +359,10 @@ public class TournamentOwnershipIntegrationTests : IClassFixture<CustomWebApplic
 
         var match = new Match(tournamentId, 1, 1, homeId, awayId);
         db.Matches.Add(match);
+
+        // Turniej z terminarzem jest rozpoczęty (KAN-290), a wyniki można wpisywać tylko w rozpoczętym turnieju
+        var tournament = await db.Tournaments.FindAsync(tournamentId);
+        tournament!.Start();
         await db.SaveChangesAsync();
 
         return (tournamentId, match.Id);

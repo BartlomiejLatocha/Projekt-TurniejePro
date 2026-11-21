@@ -42,7 +42,7 @@ Warunki:
 - terminarz nie został jeszcze wygenerowany (inaczej `409`),
 - zapis wszystkich meczów odbywa się **w jednej transakcji** (`UnitOfWork`). Naruszenie unikalnego indeksu przy równoległym żądaniu kończy się `409`.
 
-Sukces: `201 Created` z `ScheduleResponse`.
+Sukces: `201 Created` z `ScheduleResponse`. **Wygenerowanie terminarza rozpoczyna turniej** (status „W trakcie”, patrz [Cykl życia turnieju](#cykl-życia-turnieju)).
 
 ### Liga (round-robin)
 
@@ -61,11 +61,46 @@ Sukces: `201 Created` z `ScheduleResponse`.
 ### Pobranie i usunięcie
 
 - `GET /api/v1/tournaments/{tournamentId}/schedule` jest **publiczny** (`[AllowAnonymous]`), bo terminarz ma być udostępniony. Zwraca `200` z `ScheduleResponse`, a `404`, gdy turniej lub terminarz nie istnieje. Mecze są pogrupowane w rundy i posortowane po `Round`, `Position`.
-- `DELETE /api/v1/tournaments/{tournamentId}/schedule` (polityka `ManageTournaments`) usuwa terminarz, żeby można go było wygenerować ponownie. Zwraca `204`, `404` albo `409`, gdy którykolwiek mecz ma już wpisany wynik.
+- `DELETE /api/v1/tournaments/{tournamentId}/schedule` (polityka `ManageTournament`) usuwa terminarz, żeby można go było wygenerować ponownie, i **cofa turniej do zapisów**. Zwraca `204`, `404` albo `409`, gdy którykolwiek mecz ma już wpisany wynik (wolne losy się nie liczą).
 
 ### Skutek dla zgłoszeń
 
-Po wygenerowaniu terminarza **nie można** przyjmować nowych zgłoszeń ani akceptować oczekujących (`409`). Do `RegistrationBlockReason` dodajemy wartość oznaczającą wygenerowany terminarz (uzgodnienie z osobą odpowiedzialną za KAN-76).
+Wygenerowanie terminarza rozpoczyna turniej, więc **nie można** przyjmować nowych zgłoszeń (`RegistrationBlockReason.TournamentStarted`) ani akceptować i odrzucać oczekujących (`400`). Żeby zmienić skład drużyn, organizator usuwa terminarz (dopóki nie ma wyników) i generuje go ponownie.
+
+## Cykl życia turnieju
+
+Ustalenia z KAN-290. Statusy: Szkic → Zapisy → W trakcie → Zakończony.
+
+| Zdarzenie | Skutek |
+|---|---|
+| Otwarcie zapisów (`PATCH …/open-registration`) | Szkic → Zapisy |
+| Wygenerowanie terminarza (`POST …/schedule`) | Szkic lub Zapisy → **W trakcie**. Zapisy się zamykają, format, limit drużyn i punktacja zostają zablokowane |
+| Ręczny start (`PATCH …/start`) | tylko gdy terminarz już istnieje (np. wygenerowany przed tą zmianą), inaczej `400`. Zwykle niepotrzebny |
+| Usunięcie terminarza bez wyników (`DELETE …/schedule`) | W trakcie → **Zapisy** |
+| Wpisanie ostatniego brakującego wyniku | W trakcie → **Zakończony** (automatycznie) |
+
+### Edycja turnieju zależnie od statusu
+
+`PUT /api/v1/tournaments/{id}` przyjmuje cały formularz. Pole przesłane bez zmian nie jest traktowane jako zmiana (termin porównujemy z dokładnością do minuty, dyscyplinę bez rozróżniania wielkości liter). Zmiana pola zablokowanego w danym statusie kończy się `400` z komunikatem, które pola wolno zmienić, a które zostały zablokowane.
+
+| Pole | Szkic | Zapisy | W trakcie | Zakończony |
+|---|---|---|---|---|
+| Nazwa | tak | tak | tak | nie |
+| Termin rozpoczęcia | tak | tak | nie | nie |
+| Limit drużyn | tak | tak | nie | nie |
+| Dyscyplina | tak | nie | nie | nie |
+| Format | tak | nie | nie | nie |
+| Punktacja | tak | nie | nie | nie |
+
+- W zapisach format, dyscyplina i punktacja są zablokowane, bo drużyny zgłosiły się na konkretne zasady.
+- **Administrator** pomija ograniczenia statusu. Reguł spójności danych nie pomija nikt: formatu nie można zmienić, gdy istnieje terminarz, a limit drużyn nie może spaść poniżej liczby zgłoszeń.
+- Termin rozpoczęcia musi być w przyszłości tylko wtedy, gdy się zmienia. Dzięki temu rozpoczęty turniej z terminem w przeszłości można przemianować. Dlatego `UpdateTournamentRequest` nie ma atrybutu `[FutureDate]` (ma go tylko `CreateTournamentRequest`).
+
+### Wyniki i zakończenie
+
+- **Wyniki można wpisywać tylko w rozpoczętym turnieju** (W trakcie lub Zakończony). W szkicu i w zapisach serwis odrzuca wynik z `400`. Poprawka wyniku w zakończonym turnieju jest dozwolona.
+- Turniej zakończony nie wraca do zapisów.
+- Dla UI (KAN-293): przycisk „Rozpocznij turniej” bez terminarza zwróci błąd, więc w panelu organizatora jego miejsce zajmuje „Generuj terminarz”.
 
 ## Wpisywanie wyniku
 
@@ -75,6 +110,7 @@ Reguły:
 
 | Sytuacja | Odpowiedź |
 |---|---|
+| Turniej nie jest rozpoczęty (szkic lub zapisy) | `400` |
 | Wynik ujemny lub poza zakresem 0-999 | `400` |
 | Mecz nie istnieje lub należy do innego turnieju | `404` |
 | Mecz nie ma jeszcze obu drużyn | `409` |
@@ -93,9 +129,9 @@ Dodatkowo:
 
 | Metoda i ścieżka | Polityka | Sukces | Błędy |
 |---|---|---|---|
-| `POST /api/v1/tournaments/{id}/schedule` | `ManageTournaments` | `201` | `401`, `403`, `404`, `409` |
+| `POST /api/v1/tournaments/{id}/schedule` | `ManageTournament` | `201` | `400`, `401`, `403`, `404`, `409` |
 | `GET /api/v1/tournaments/{id}/schedule` | publiczny | `200` | `404` |
-| `DELETE /api/v1/tournaments/{id}/schedule` | `ManageTournaments` | `204` | `401`, `403`, `404`, `409` |
+| `DELETE /api/v1/tournaments/{id}/schedule` | `ManageTournament` | `204` | `401`, `403`, `404`, `409` |
 | `PUT /api/v1/tournaments/{id}/matches/{matchId}/result` | `EnterResults` | `200` | `400`, `401`, `403`, `404`, `409` |
 
 Kontrakty: `TurniejePro.Contracts.Matches` (`ScheduleResponse`, `ScheduleRoundResponse`, `MatchResponse`, `MatchTeamResponse`, `MatchStatus`, `UpdateMatchResultRequest`).
@@ -115,3 +151,5 @@ Kontrakty: `TurniejePro.Contracts.Matches` (`ScheduleResponse`, `ScheduleRoundRe
 | Data | Decyzja | Uczestnicy |
 |---|---|---|
 | `TODO` | Zasady generowania terminarza i wyników z tego dokumentu | `TODO` |
+| 21.11.2026 | Terminarz rozpoczyna turniej; ręczny start wymaga terminarza; wyniki tylko w rozpoczętym turnieju; usunięcie terminarza tylko bez wyników i z powrotem do zapisów | KAN-290 |
+| 21.11.2026 | Edycja turnieju według statusu: Szkic – wszystko, Zapisy – nazwa, termin, limit, W trakcie – nazwa, Zakończony – nic; admin pomija ograniczenia statusu, ale nie reguły spójności | KAN-290 |

@@ -77,7 +77,7 @@ Uwagi do macierzy:
 - **Wyniki wpisuje tylko organizator.** Kapitan nie może wpisać wyniku, nawet meczu własnej drużyny. Ewentualne „zgłoszenie wyniku przez kapitana do zatwierdzenia przez organizatora” to osobna funkcja na przyszłość.
 - **Organizator może zgłosić drużynę także do własnego turnieju**, np. gdy wpisuje drużyny w imieniu uczestników. Staje się wtedy jej kapitanem.
 - **Wpisowe płaci tylko kapitan.** Organizator nie płaci za cudzą drużynę, a admin nie ma powodu, żeby płacić.
-- Uprawnienie nie zastępuje **reguł biznesowych**. Przykład: organizator ma prawo zmienić format turnieju, ale domena odrzuci zmianę, gdy turniej już się rozpoczął. Takie odmowy zwracają `400` lub `409`, a nie `403`.
+- Uprawnienie nie zastępuje **reguł biznesowych**. Przykład: organizator ma prawo zmienić format turnieju, ale domena odrzuci zmianę, gdy turniej już się rozpoczął. Takie odmowy zwracają `400` lub `409`, a nie `403`. Co wolno zmienić w turnieju w każdym statusie i jak omija to administrator, opisuje [scheduling.md](scheduling.md#edycja-turnieju-zależnie-od-statusu).
 - Szczegółowe zasady kibicowania tokenami (np. czy kapitan może kibicować własnej drużynie, limity) ustala zadanie TA-13.1.1.
 
 ## Polityki

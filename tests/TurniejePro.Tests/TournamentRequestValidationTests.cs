@@ -35,7 +35,9 @@ public class TournamentRequestValidationTests
         ForBothKinds(TournamentFormat.League, TournamentFormat.Cup);
 
     /// <summary>Przesunięcie terminu względem chwili wywołania testu, w minutach.</summary>
-    public static TheoryData<RequestKind, int> PastStartOffsetsInMinutes => ForBothKinds(0, -1, -60, -1440, -525600);
+    // Termin w przyszłości sprawdza kontrakt tylko przy tworzeniu. Przy edycji pilnuje go domena i tylko wtedy, gdy termin
+    // się zmienia (KAN-290): rozpoczęty turniej może mieć termin w przeszłości, a mimo to da się zmienić jego nazwę.
+    public static TheoryData<RequestKind, int> PastStartOffsetsInMinutes => ForCreateOnly(0, -1, -60, -1440, -525600);
 
     public static TheoryData<RequestKind, int> FutureStartOffsetsInMinutes => ForBothKinds(2, 60, 1440, 525600);
 
@@ -150,7 +152,6 @@ public class TournamentRequestValidationTests
 
     [Theory]
     [InlineData(RequestKind.Create)]
-    [InlineData(RequestKind.Update)]
     public void StartsAt_DefaultValue_ReportsStartsAtError(RequestKind kind)
     {
         // Tak wygląda żądanie, w którym klient pominął pole startsAt
@@ -181,7 +182,10 @@ public class TournamentRequestValidationTests
             format: (TournamentFormat)99,
             startsAt: default(DateTimeOffset)));
 
-        Assert.Equal(["Discipline", "Format", "MaxTeams", "Name", "StartsAt"], errors.Keys.Order());
+        string[] expected = kind == RequestKind.Create
+            ? ["Discipline", "Format", "MaxTeams", "Name", "StartsAt"]
+            : ["Discipline", "Format", "MaxTeams", "Name"];
+        Assert.Equal(expected, errors.Keys.Order());
     }
 
     private static void AssertOnlyFieldHasError(IReadOnlyDictionary<string, string[]> errors, string field)
@@ -206,6 +210,27 @@ public class TournamentRequestValidationTests
             RequestKind.Update => new UpdateTournamentRequest(name!, discipline!, format, start, maxTeams),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Nieznany rodzaj żądania.")
         };
+    }
+
+    [Theory]
+    [InlineData(-525600)]
+    [InlineData(0)]
+    public void UpdateRequest_StartsAtInPast_IsValidAtContractLevel(int minutesFromNow)
+    {
+        var errors = MvcValidation.Validate(Build(RequestKind.Update, startsAt: DateTimeOffset.UtcNow.AddMinutes(minutesFromNow)));
+
+        Assert.Empty(errors);
+    }
+
+    private static TheoryData<RequestKind, T> ForCreateOnly<T>(params T[] values)
+    {
+        var data = new TheoryData<RequestKind, T>();
+        foreach (var value in values)
+        {
+            data.Add(RequestKind.Create, value);
+        }
+
+        return data;
     }
 
     private static TheoryData<RequestKind, T> ForBothKinds<T>(params T[] values)

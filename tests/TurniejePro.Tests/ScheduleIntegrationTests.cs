@@ -6,6 +6,8 @@ using TurniejePro.Contracts.Matches;
 using TurniejePro.Data;
 using TurniejePro.Domain;
 using TurniejePro.Domain.Enums;
+using ContractStatus = TurniejePro.Contracts.Tournaments.TournamentStatus;
+using TournamentDetailsResponse = TurniejePro.Contracts.Tournaments.TournamentDetailsResponse;
 using Xunit;
 
 namespace TurniejePro.Tests;
@@ -150,7 +152,7 @@ public class ScheduleIntegrationTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
-    public async Task AcceptTeamRegistration_AfterScheduleGenerated_Returns409Conflict()
+    public async Task AcceptTeamRegistration_AfterScheduleGenerated_Returns400BecauseTournamentStarted()
     {
         // Arrange
         var token = _testTokens.ForRoles("Admin", "Organizer");
@@ -166,8 +168,74 @@ public class ScheduleIntegrationTests : IClassFixture<CustomWebApplicationFactor
         // Act: Próba akceptacji zgłoszenia po wygenerowaniu terminarza
         var response = await _client.PatchAsync($"/api/v1/teams/{newTeamId}/accept", null);
 
-        // Assert
+        // Assert: wygenerowanie terminarza rozpoczęło turniej (KAN-290), więc zgłoszeń nie można już akceptować
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // --- Cykl życia turnieju (KAN-290) ---
+
+    [Fact]
+    public async Task POST_GenerateSchedule_StartsTournament()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _testTokens.ForRoles("Admin"));
+        var tournamentId = await SeedTournamentWithTeamsAsync(TournamentFormat.League, 4);
+
+        await _client.PostAsync($"/api/v1/tournaments/{tournamentId}/schedule", null);
+
+        var tournament = await GetTournamentAsync(tournamentId);
+        Assert.Equal(ContractStatus.InProgress, tournament.Status);
+        Assert.True(tournament.IsStarted);
+    }
+
+    [Fact]
+    public async Task DELETE_Schedule_WithoutResults_ReturnsTournamentToRegistration()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _testTokens.ForRoles("Admin"));
+        var tournamentId = await SeedTournamentWithTeamsAsync(TournamentFormat.League, 4);
+        await _client.PostAsync($"/api/v1/tournaments/{tournamentId}/schedule", null);
+
+        var response = await _client.DeleteAsync($"/api/v1/tournaments/{tournamentId}/schedule");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(ContractStatus.RegistrationOpen, (await GetTournamentAsync(tournamentId)).Status);
+    }
+
+    [Fact]
+    public async Task DELETE_Schedule_WithResult_Returns409AndKeepsSchedule()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _testTokens.ForRoles("Admin"));
+        var tournamentId = await SeedTournamentWithTeamsAsync(TournamentFormat.League, 4);
+        var generated = await _client.PostAsync($"/api/v1/tournaments/{tournamentId}/schedule", null);
+        var schedule = await generated.Content.ReadFromJsonAsync<ScheduleResponse>();
+        var firstMatch = schedule!.Rounds[0].Matches[0];
+        await _client.PutAsJsonAsync($"/api/v1/tournaments/{tournamentId}/matches/{firstMatch.Id}/result", new UpdateMatchResultRequest(2, 1));
+
+        var response = await _client.DeleteAsync($"/api/v1/tournaments/{tournamentId}/schedule");
+
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var stillThere = await _client.GetAsync($"/api/v1/tournaments/{tournamentId}/schedule");
+        Assert.Equal(HttpStatusCode.OK, stillThere.StatusCode);
+        Assert.Equal(ContractStatus.InProgress, (await GetTournamentAsync(tournamentId)).Status);
+    }
+
+    [Fact]
+    public async Task PATCH_Start_AfterScheduleWasDeleted_Returns400()
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _testTokens.ForRoles("Admin"));
+        var tournamentId = await SeedTournamentWithTeamsAsync(TournamentFormat.League, 4);
+        await _client.PostAsync($"/api/v1/tournaments/{tournamentId}/schedule", null);
+        await _client.DeleteAsync($"/api/v1/tournaments/{tournamentId}/schedule");
+
+        var response = await _client.PatchAsync($"/api/v1/tournaments/{tournamentId}/start", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private async Task<TournamentDetailsResponse> GetTournamentAsync(Guid tournamentId)
+    {
+        var tournament = await _client.GetFromJsonAsync<TournamentDetailsResponse>($"/api/v1/tournaments/{tournamentId}");
+        Assert.NotNull(tournament);
+        return tournament;
     }
 
     private async Task<Guid> SeedTournamentWithTeamsAsync(TournamentFormat format, int teamCount)

@@ -118,7 +118,8 @@ public class TournamentsController : ControllerBase
     }
 
     /// <summary>
-    /// Aktualizuje istniejący turniej.
+    /// Aktualizuje istniejący turniej. Szkic: wszystkie pola; Zapisy: nazwa, termin, limit; W trakcie: nazwa;
+    /// Zakończony: nic. Administrator pomija te ograniczenia (formatu przy terminarzu nie zmieni nikt).
     /// </summary>
     [HttpPut("{id:guid}")]
     [Authorize]
@@ -147,14 +148,15 @@ public class TournamentsController : ControllerBase
             return Forbid();
         }
 
-        // Rozpoczęty turniej i limit mniejszy niż liczba drużyn (BusinessRuleException) oraz błędne dane
-        // (ArgumentException) zamienia na 400 globalny handler wyjątków
+        // Pola zablokowane w danym statusie i limit mniejszy niż liczba drużyn (BusinessRuleException) oraz błędne dane
+        // (ArgumentException) zamienia na 400 globalny handler wyjątków. Admin pomija ograniczenia statusu.
         tournament.UpdateDetails(
             request.Name,
             request.Discipline,
             (Domain.Enums.TournamentFormat)request.Format,
             request.StartsAt,
-            request.MaxTeams);
+            request.MaxTeams,
+            asAdmin: User.HasClaim("role", Roles.Admin));
 
         _unitOfWork.Tournaments.Update(tournament);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -178,7 +180,8 @@ public class TournamentsController : ControllerBase
     }
 
     /// <summary>
-    /// Szkic lub Zapisy → W trakcie: rozpoczyna turniej i blokuje zmiany formatu oraz punktacji. Wymaga tokenu organizatora.
+    /// Szkic lub Zapisy → W trakcie: rozpoczyna turniej i blokuje zmiany formatu oraz punktacji. Wymaga tokenu organizatora
+    /// i wygenerowanego terminarza. Zwykle niepotrzebne: wygenerowanie terminarza samo rozpoczyna turniej.
     /// </summary>
     [HttpPatch("{id:guid}/start")]
     [Authorize]
@@ -189,7 +192,8 @@ public class TournamentsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken)
     {
-        return await ChangeStatusAsync(id, t => t.Start(), cancellationToken);
+        // GetWithDetailsAsync w ChangeStatusAsync wczytuje mecze, więc domena widzi, czy terminarz istnieje
+        return await ChangeStatusAsync(id, t => t.StartWithExistingSchedule(), cancellationToken);
     }
 
     private async Task<IActionResult> ChangeStatusAsync(Guid id, Action<Tournament> change, CancellationToken cancellationToken)

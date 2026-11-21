@@ -145,6 +145,8 @@ public class MatchResultIntegrationTests : IClassFixture<CustomWebApplicationFac
         var db = scope.ServiceProvider.GetRequiredService<TurniejeProDbContext>();
 
         var tournament = new Tournament($"Liga {Guid.NewGuid()}", "Opis", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(1), 8, null);
+
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t1 = new Team("Drużyna A", tournament.Id); t1.Accept();
         var t2 = new Team("Drużyna B", tournament.Id); t2.Accept();
         var match = new Match(tournament.Id, 1, 1, t1.Id, t2.Id);
@@ -163,6 +165,8 @@ public class MatchResultIntegrationTests : IClassFixture<CustomWebApplicationFac
         var db = scope.ServiceProvider.GetRequiredService<TurniejeProDbContext>();
 
         var tournament = new Tournament($"Puchar {Guid.NewGuid()}", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 4, null);
+
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t1 = new Team("Drużyna A", tournament.Id); t1.Accept();
         var t2 = new Team("Drużyna B", tournament.Id); t2.Accept();
         var match = new Match(tournament.Id, 1, 1, t1.Id, t2.Id);
@@ -181,6 +185,8 @@ public class MatchResultIntegrationTests : IClassFixture<CustomWebApplicationFac
         var db = scope.ServiceProvider.GetRequiredService<TurniejeProDbContext>();
 
         var tournament = new Tournament($"Puchar Bye {Guid.NewGuid()}", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 5, null);
+
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t1 = new Team("Drużyna A", tournament.Id); t1.Accept();
         var byeMatch = new Match(tournament.Id, 1, 1, t1.Id, awayTeamId: null);
         byeMatch.MarkAsBye();

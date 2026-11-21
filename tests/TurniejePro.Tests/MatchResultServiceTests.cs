@@ -14,6 +14,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Liga", "Opis", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(1), 8, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var team1 = CreateAcceptedTeam("Drużyna 1", tournament.Id);
         var team2 = CreateAcceptedTeam("Drużyna 2", tournament.Id);
         var match = new Match(tournament.Id, 1, 1, team1.Id, team2.Id);
@@ -35,6 +36,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Liga", "Opis", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(1), 8, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var team1 = CreateAcceptedTeam("T1", tournament.Id);
         var team2 = CreateAcceptedTeam("T2", tournament.Id);
         var match = new Match(tournament.Id, 1, 1, team1.Id, team2.Id);
@@ -56,6 +58,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Liga", "Opis", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(1), 8, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var team1 = CreateAcceptedTeam("T1", tournament.Id);
         var team2 = CreateAcceptedTeam("T2", tournament.Id);
         var match = new Match(tournament.Id, 1, 1, team1.Id, team2.Id);
@@ -72,6 +75,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Liga", "Opis", TournamentFormat.League, DateTimeOffset.UtcNow.AddDays(1), 8, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var fakeUow = new FakeUnitOfWork(tournament, [], []);
         var sut = new MatchResultService(fakeUow);
 
@@ -87,6 +91,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Puchar", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 8, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var team1 = CreateAcceptedTeam("T1", tournament.Id);
         var team2 = CreateAcceptedTeam("T2", tournament.Id);
         var match = new Match(tournament.Id, 1, 1, team1.Id, team2.Id);
@@ -103,6 +108,7 @@ public class MatchResultServiceTests
     {
         // Arrange: 4 drużyny pucharowe -> Mecz 1 (Runda 1, Poz 1), Mecz 2 (Runda 1, Poz 2), Finał (Runda 2, Poz 1)
         var tournament = new Tournament("Puchar 4", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 4, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t1 = CreateAcceptedTeam("T1", tournament.Id);
         var t2 = CreateAcceptedTeam("T2", tournament.Id);
 
@@ -125,6 +131,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Puchar 4", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 4, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t3 = CreateAcceptedTeam("T3", tournament.Id);
         var t4 = CreateAcceptedTeam("T4", tournament.Id);
 
@@ -147,6 +154,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Puchar 4", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 4, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t1 = CreateAcceptedTeam("T1", tournament.Id);
         var t2 = CreateAcceptedTeam("T2", tournament.Id);
 
@@ -172,6 +180,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Puchar 4", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 4, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t1 = CreateAcceptedTeam("T1", tournament.Id);
         var t2 = CreateAcceptedTeam("T2", tournament.Id);
 
@@ -191,6 +200,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Puchar 5", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 5, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t1 = CreateAcceptedTeam("T1", tournament.Id);
 
         var byeMatch = new Match(tournament.Id, 1, 1, t1.Id, awayTeamId: null);
@@ -208,6 +218,7 @@ public class MatchResultServiceTests
     {
         // Arrange: Mecz finałowy bez obydwu drużyn
         var tournament = new Tournament("Puchar 4", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 4, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var unassignedMatch = new Match(tournament.Id, 2, 1, homeTeamId: null, awayTeamId: null);
 
         var fakeUow = new FakeUnitOfWork(tournament, [], [unassignedMatch]);
@@ -222,6 +233,7 @@ public class MatchResultServiceTests
     {
         // Arrange
         var tournament = new Tournament("Puchar", "Opis", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), 2, null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var t1 = CreateAcceptedTeam("T1", tournament.Id);
         var t2 = CreateAcceptedTeam("T2", tournament.Id);
 

@@ -76,6 +76,7 @@ public class MatchResultScoringRulesTests
     private static (MatchResultService Service, Tournament Tournament, Match Match) Arrange(TournamentFormat format, ScoringRules? scoringRules)
     {
         var tournament = new Tournament("Turniej", "Piłka nożna", format, DateTimeOffset.UtcNow.AddDays(7), 8, organizerId: null, scoringRules);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var home = new Team("Gospodarze", tournament.Id);
         var away = new Team("Goście", tournament.Id);
         home.Accept();

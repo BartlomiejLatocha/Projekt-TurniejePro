@@ -136,13 +136,14 @@ public class TournamentTests
     }
 
     [Fact]
-    public void UpdateDetails_WhenStarted_ShouldThrowBusinessRuleException()
+    public void UpdateDetails_WhenStarted_FormatChange_ShouldThrowBusinessRuleException()
     {
         var tournament = new Tournament("Turniej", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8);
         tournament.Start();
 
+        // Po starcie wolno zmienić tylko nazwę (KAN-290), więc zmiana formatu jest odrzucana
         Assert.Throws<BusinessRuleException>(() =>
-            tournament.UpdateDetails("Nowa", "FIFA", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8));
+            tournament.UpdateDetails("Turniej", "FIFA", TournamentFormat.League, DateTimeOffset.UtcNow, 8));
     }
 
     [Theory]

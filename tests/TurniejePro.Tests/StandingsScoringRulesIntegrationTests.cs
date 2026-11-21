@@ -114,6 +114,7 @@ public class StandingsScoringRulesIntegrationTests : IClassFixture<CustomWebAppl
             8,
             _organizerId,
             scoringRules);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var home = new Team("Gospodarze", tournament.Id);
         var away = new Team("Goście", tournament.Id);
         home.Accept();
