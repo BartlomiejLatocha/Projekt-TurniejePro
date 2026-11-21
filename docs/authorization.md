@@ -117,6 +117,7 @@ Stan docelowy dla istniejących endpointów. Nowy endpoint dopisujemy do tej tab
 |---|---|
 | `POST /api/v1/auth/register`, `POST /api/v1/auth/login` | `AllowAnonymous` |
 | `GET /api/v1/auth/me` | `Authenticated` |
+| `GET /api/v1/me/tournaments`, `GET /api/v1/me/teams` | `Authenticated` (każdy widzi tylko swoje: `OrganizerId` / `CaptainId` równe `sub`, także admin) |
 | `GET /api/v1/health` | `AllowAnonymous` |
 | `GET /api/v1/tournaments`, `GET /api/v1/tournaments/{id}` | `AllowAnonymous` |
 | `POST /api/v1/tournaments` | `CreateTournament` |

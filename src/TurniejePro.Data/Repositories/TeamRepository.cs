@@ -29,8 +29,11 @@ public class TeamRepository : Repository<Team>, ITeamRepository
 
     public async Task<IReadOnlyList<Team>> GetByCaptainIdAsync(Guid captainId, CancellationToken cancellationToken = default)
     {
+        // Turniej jest potrzebny w widoku „Moje drużyny” (nazwa, status, termin)
         return await DbSet
+            .AsNoTracking()
             .Include(t => t.Players)
+            .Include(t => t.Tournament)
             .Where(t => t.CaptainId == captainId)
             .OrderBy(t => t.Name)
             .ToListAsync(cancellationToken);

@@ -23,6 +23,9 @@ src/TurniejePro.Contracts/
 │   ├── TournamentFormat.cs           # enum
 │   ├── TournamentResponse.cs
 │   └── CreateTournamentRequest.cs
+├── Profile/                          # zasoby zalogowanego użytkownika (GET /api/v1/me/...)
+│   ├── MyTournamentResponse.cs
+│   └── MyTeamResponse.cs
 ├── Validation/
 │   └── FutureDateAttribute.cs        # własne atrybuty walidacji
 ├── Teams/                            # kolejne zasoby według tego samego wzoru
@@ -217,6 +220,9 @@ Zasady do zapamiętania:
 | Mecze | `/api/v1/matches` | `UpdateMatchResultRequest` | `MatchResponse` | `TODO` | do wykonania |
 | Tabela | `/api/v1/tournaments/{id}/standings` | brak | `StandingsResponse` | `TODO` | do wykonania |
 | Konta | `/api/v1/auth` | `LoginRequest` | `AuthResponse` | Adam Bednarski | gotowe |
+| Moje turnieje i drużyny | `/api/v1/me/tournaments`, `/api/v1/me/teams` | brak | `MyTournamentResponse`, `MyTeamResponse` | Radosław Kawa | gotowe (KAN-304) |
+
+Listy „moich” zasobów (`/api/v1/me/...`) zwracają zwykłą tablicę, bez `PagedResponse`: jeden użytkownik ma kilka, najwyżej kilkadziesiąt turniejów i drużyn, a UI pokazuje je w całości. Kolejność ustala API: najpierw turnieje w trakcie, potem zapisy, szkice i zakończone, w obrębie etapu według terminu rozpoczęcia. Przestrzeń nazw to `Profile`, a nie `Me`, bo `Me` jest słowem kluczowym Visual Basic (reguła CA1716).
 
 Nazwy typów i ścieżki w wierszach „do wykonania" są propozycjami. Właściciel zasobu może je doprecyzować, trzymając się konwencji z tego dokumentu.
 
