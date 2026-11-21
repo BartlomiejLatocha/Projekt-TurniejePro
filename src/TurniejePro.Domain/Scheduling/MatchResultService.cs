@@ -37,6 +37,13 @@ public class MatchResultService
             throw new NotFoundException($"Mecz o ID '{matchId}' nie istnieje w turnieju '{tournamentId}'.");
         }
 
+        // Wyniki wpisujemy dopiero w rozpoczętym turnieju (także poprawki po zakończeniu). Bez tego wyniki wpisane
+        // w szkicu lub w zapisach nigdy nie zakończyłyby turnieju (KAN-290) -> 400
+        if (!tournament.IsStarted)
+        {
+            throw new BusinessRuleException("Wyniki można wpisywać dopiero po rozpoczęciu turnieju (po wygenerowaniu terminarza).");
+        }
+
         // 3. Sprawdzenie typu meczu: wolny los lub anulowany -> 409
         if (match.IsBye || match.Status == MatchStatus.Cancelled)
         {

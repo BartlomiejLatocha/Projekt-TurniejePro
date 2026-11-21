@@ -276,7 +276,9 @@ public class ResourceAuthorizationMatrixTests : IClassFixture<CustomWebApplicati
         var match = new Match(tournament.Id, 1, 1, accepted[0].Id, accepted[1].Id);
         if (withMatch)
         {
+            // Turniej z terminarzem jest rozpoczęty (KAN-290), a wyniki można wpisywać tylko w rozpoczętym turnieju
             db.Matches.Add(match);
+            tournament.Start();
         }
 
         await db.SaveChangesAsync();

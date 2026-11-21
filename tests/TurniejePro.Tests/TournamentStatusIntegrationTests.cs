@@ -53,7 +53,7 @@ public class TournamentStatusIntegrationTests : IClassFixture<CustomWebApplicati
     }
 
     [Fact]
-    public async Task OpenRegistrationThenStart_MovesThroughStatuses()
+    public async Task OpenRegistration_MovesDraftToRegistrationOpen()
     {
         AuthenticateAs(Roles.User);
         var created = await CreateCupAsync();
@@ -62,41 +62,23 @@ public class TournamentStatusIntegrationTests : IClassFixture<CustomWebApplicati
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
         var afterOpen = await opened.Content.ReadFromJsonAsync<TournamentDetailsResponse>();
         Assert.Equal(TournamentStatus.RegistrationOpen, afterOpen!.Status);
+    }
+
+    // KAN-290: turniej rozpoczyna wygenerowanie terminarza. Ręczny start bez terminarza jest odrzucany, a turniej zostaje
+    // w zapisach. Start po terminarzu, zmianę formatu po starcie i pozostałe przejścia sprawdza TournamentLifecycleIntegrationTests.
+    [Fact]
+    public async Task Start_WithoutSchedule_Returns400AndKeepsRegistrationOpen()
+    {
+        AuthenticateAs(Roles.User);
+        var created = await CreateCupAsync();
+        await _client.PatchAsync($"/api/v1/tournaments/{created.Id}/open-registration", null);
 
         var started = await _client.PatchAsync($"/api/v1/tournaments/{created.Id}/start", null);
-        Assert.Equal(HttpStatusCode.OK, started.StatusCode);
-        var afterStart = await started.Content.ReadFromJsonAsync<TournamentDetailsResponse>();
-        Assert.Equal(TournamentStatus.InProgress, afterStart!.Status);
-        Assert.True(afterStart.IsStarted);
-    }
 
-    [Fact]
-    public async Task StartTwice_Returns400()
-    {
-        AuthenticateAs(Roles.User);
-        var created = await CreateCupAsync();
-        await _client.PatchAsync($"/api/v1/tournaments/{created.Id}/start", null);
-
-        var second = await _client.PatchAsync($"/api/v1/tournaments/{created.Id}/start", null);
-
-        Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
-    }
-
-    [Fact]
-    public async Task FormatChange_AfterStart_Returns400()
-    {
-        AuthenticateAs(Roles.User);
-        var created = await CreateCupAsync();
-        await _client.PatchAsync($"/api/v1/tournaments/{created.Id}/start", null);
-
-        var update = await _client.PutAsJsonAsync($"/api/v1/tournaments/{created.Id}", new UpdateTournamentRequest(
-            Name: "Status test",
-            Discipline: "chess",
-            Format: TournamentFormat.League,
-            StartsAt: DateTimeOffset.UtcNow.AddDays(12),
-            MaxTeams: 8));
-
-        Assert.Equal(HttpStatusCode.BadRequest, update.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, started.StatusCode);
+        var tournament = await _client.GetFromJsonAsync<TournamentDetailsResponse>($"/api/v1/tournaments/{created.Id}");
+        Assert.Equal(TournamentStatus.RegistrationOpen, tournament!.Status);
+        Assert.False(tournament.IsStarted);
     }
 
     [Fact]

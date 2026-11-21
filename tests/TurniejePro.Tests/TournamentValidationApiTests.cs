@@ -72,8 +72,16 @@ public class TournamentValidationApiTests : IClassFixture<CustomWebApplicationFa
         await AssertBadRequestWithErrorsOnlyForAsync(response, field);
     }
 
+    // Przy edycji termin w przeszłości nie jest błędem kontraktu (sprawdza go domena, gdy termin się zmienia), więc
+    // edycję sprawdzamy tylko na regułach, które obowiązują w obu żądaniach.
+    public static TheoryData<string, string> UpdateRawBodiesBreakingOneRule => new()
+    {
+        { """{"name":"Liga Szkolna","discipline":"Szachy","format":99,"startsAt":"2099-01-01T10:00:00Z","maxTeams":8}""", "Format" },
+        { """{"name":"Liga Szkolna","discipline":"Szachy","startsAt":"2099-01-01T10:00:00Z","maxTeams":8}""", "Format" }
+    };
+
     [Theory]
-    [MemberData(nameof(RawBodiesBreakingOneRule))]
+    [MemberData(nameof(UpdateRawBodiesBreakingOneRule))]
     public async Task UpdateTournament_WithRawBodyBreakingOneRule_Returns400WithThatFieldError(string json, string field)
     {
         var response = await SendRawAsync(HttpMethod.Put, $"/api/v1/tournaments/{Guid.NewGuid()}", json);

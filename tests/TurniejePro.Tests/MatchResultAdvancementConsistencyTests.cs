@@ -30,6 +30,7 @@ public class MatchResultAdvancementConsistencyTests
     public async Task PlayingOutTheBracketThroughMatchResultService_GivesTheSameTeamsAsTheAdvancer(int teamCount)
     {
         var tournament = new Tournament("Puchar", "Piłka nożna", TournamentFormat.Cup, DateTimeOffset.UtcNow.AddDays(1), Math.Max(teamCount, 2), null);
+        tournament.Start(); // wyniki wpisujemy tylko w rozpoczętym turnieju (KAN-290)
         var teams = Enumerable.Range(0, teamCount)
             .Select(index =>
             {

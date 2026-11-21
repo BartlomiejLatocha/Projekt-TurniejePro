@@ -100,7 +100,7 @@ public class ScheduleController : ControllerBase
     }
 
     /// <summary>
-    /// Usuwa terminarz powiązany z danym turniejem.
+    /// Usuwa terminarz turnieju, o ile nie ma w nim wyników, i cofa turniej do zapisów.
     /// </summary>
     [HttpDelete]
     [Authorize]
@@ -108,6 +108,7 @@ public class ScheduleController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DeleteSchedule(
         Guid tournamentId,
         CancellationToken cancellationToken)
@@ -136,8 +137,8 @@ public class ScheduleController : ControllerBase
                 title: "Nie znaleziono terminarza");
         }
 
-        await _unitOfWork.Matches.DeleteByTournamentIdAsync(tournamentId, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        // Terminarz z wpisanymi wynikami (409) chroni ScheduleService; po usunięciu turniej wraca do zapisów
+        await _scheduleService.DeleteScheduleAsync(tournamentId, cancellationToken);
 
         return NoContent();
     }
