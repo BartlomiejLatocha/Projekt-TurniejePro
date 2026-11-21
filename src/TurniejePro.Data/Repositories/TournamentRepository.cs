@@ -22,7 +22,10 @@ public class TournamentRepository : Repository<Tournament>, ITournamentRepositor
 
     public async Task<IReadOnlyList<Tournament>> GetByOrganizerIdAsync(Guid organizerId, CancellationToken cancellationToken = default)
     {
+        // Drużyny są potrzebne do liczników zgłoszeń w widoku „Moje turnieje”
         return await DbSet
+            .AsNoTracking()
+            .Include(t => t.Teams)
             .Where(t => t.OrganizerId == organizerId)
             .OrderBy(t => t.Discipline)
             .ThenBy(t => t.Name)
