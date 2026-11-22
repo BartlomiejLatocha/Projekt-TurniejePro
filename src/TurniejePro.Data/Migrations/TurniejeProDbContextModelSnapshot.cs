@@ -342,9 +342,6 @@ namespace TurniejePro.Data.Migrations
                     b.Property<int?>("GroupNumber")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsAccepted")
-                        .HasColumnType("INTEGER");
-
                     b.Property<byte[]>("Logo")
                         .HasMaxLength(1048576)
                         .HasColumnType("BLOB");

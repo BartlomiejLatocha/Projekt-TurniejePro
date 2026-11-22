@@ -14,7 +14,6 @@ public class Team
 
     /// <summary>Numer grupy w fazie grupowej (od 1), null poza fazą grupową.</summary>
     public int? GroupNumber { get; set; }
-    public bool IsAccepted { get; private set; }
     public TeamRegistrationStatus Status { get; private set; } = TeamRegistrationStatus.Pending;
     public DateTimeOffset RegisteredAt { get; set; }
 
@@ -68,26 +67,22 @@ public class Team
         TournamentId = tournamentId;
         CaptainId = captainId;
         ContactEmail = contactEmail;
-        IsAccepted = false;
         Status = TeamRegistrationStatus.Pending;
         RegisteredAt = DateTimeOffset.UtcNow;
     }
 
     public void Accept()
     {
-        IsAccepted = true;
         Status = TeamRegistrationStatus.Accepted;
     }
 
     public void Reject()
     {
-        IsAccepted = false;
         Status = TeamRegistrationStatus.Rejected;
     }
 
     public void ResetToPending()
     {
-        IsAccepted = false;
         Status = TeamRegistrationStatus.Pending;
     }
 
