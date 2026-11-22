@@ -1,5 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using TurniejePro.Data;
 using TurniejePro.Domain;
 using TurniejePro.Domain.Enums;
@@ -147,6 +149,47 @@ public class TurniejeProDbContextTests : IDisposable
             Assert.Equal(0, saved.ScoringRules.PointsForDraw);
             Assert.Equal(1, saved.ScoringRules.PointsForLoss);
             Assert.False(saved.ScoringRules.AllowDraws);
+        }
+    }
+
+    [Fact]
+    public async Task Migration_RemoveTeamIsAccepted_ShouldDropColumnAndPreserveTeamStatus()
+    {
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<TurniejeProDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        var tournamentId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+
+        await using (var context = new TurniejeProDbContext(options))
+        {
+            var migrator = context.Database.GetService<IMigrator>();
+            await migrator.MigrateAsync("20261116153041_ReplaceIsStartedWithStatus");
+
+            await context.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO Tournaments (Id, Name, Discipline, Format, StartsAt, MaxTeams, Status)
+                VALUES ({0}, 'Turniej Migracji', 'Szachy', 1, '2030-01-01T00:00:00+00:00', 8, 1);
+                INSERT INTO Teams (Id, TournamentId, Name, IsAccepted, Status, RegisteredAt)
+                VALUES ({1}, {0}, 'Drużyna', 1, 2, '2026-01-01T00:00:00+00:00');
+                """,
+                tournamentId,
+                teamId);
+
+            await migrator.MigrateAsync();
+        }
+
+        await using (var context = new TurniejeProDbContext(options))
+        {
+            var team = await context.Teams.FindAsync(teamId);
+
+            Assert.NotNull(team);
+            Assert.Equal(TeamRegistrationStatus.Accepted, team.Status);
+            Assert.Empty(await context.Database.GetPendingMigrationsAsync());
         }
     }
 }

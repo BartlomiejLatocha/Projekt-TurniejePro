@@ -19,7 +19,6 @@ public class TeamTests
         Assert.Equal(tournamentId, team.TournamentId);
         Assert.Equal(captainId, team.CaptainId);
         Assert.Equal("kontakt@orly.pl", team.ContactEmail);
-        Assert.False(team.IsAccepted);
         Assert.Equal(TeamRegistrationStatus.Pending, team.Status);
         Assert.NotEqual(Guid.Empty, team.Id);
         Assert.Empty(team.Players);
@@ -35,25 +34,23 @@ public class TeamTests
     }
 
     [Fact]
-    public void Accept_ShouldSetIsAcceptedToTrueAndStatusToAccepted()
+    public void Accept_ShouldSetStatusToAccepted()
     {
         var team = new Team("Orły", Guid.NewGuid());
 
         team.Accept();
 
-        Assert.True(team.IsAccepted);
         Assert.Equal(TeamRegistrationStatus.Accepted, team.Status);
     }
 
     [Fact]
-    public void Reject_ShouldSetIsAcceptedToFalseAndStatusToRejected()
+    public void Reject_ShouldSetStatusToRejected()
     {
         var team = new Team("Orły", Guid.NewGuid());
         team.Accept();
 
         team.Reject();
 
-        Assert.False(team.IsAccepted);
         Assert.Equal(TeamRegistrationStatus.Rejected, team.Status);
     }
 
@@ -65,7 +62,6 @@ public class TeamTests
 
         team.ResetToPending();
 
-        Assert.False(team.IsAccepted);
         Assert.Equal(TeamRegistrationStatus.Pending, team.Status);
     }
 

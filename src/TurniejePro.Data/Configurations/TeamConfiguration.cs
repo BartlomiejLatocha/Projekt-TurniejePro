@@ -18,9 +18,6 @@ public class TeamConfiguration : IEntityTypeConfiguration<Team>
         builder.Property(t => t.ContactEmail)
             .HasMaxLength(100);
 
-        builder.Property(t => t.IsAccepted)
-            .IsRequired();
-
         builder.Property(t => t.Status)
             .IsRequired()
             .HasDefaultValue(TeamRegistrationStatus.Pending)
