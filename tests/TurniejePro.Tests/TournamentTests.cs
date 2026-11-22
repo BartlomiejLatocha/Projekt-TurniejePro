@@ -223,4 +223,106 @@ public class TournamentTests
 
         Assert.Equal(2, tournament.MaxTeams);
     }
+
+    [Fact]
+    public void NewTournament_ShouldDefaultToRegistrationOpen()
+    {
+        var tournament = new Tournament("Turniej Domyślny");
+
+        Assert.Equal(TournamentStatus.RegistrationOpen, tournament.Status);
+        Assert.False(tournament.IsStarted);
+    }
+
+    [Fact]
+    public void FullConstructor_WithDraftStatus_ShouldSetDraftAndNotStarted()
+    {
+        var tournament = new Tournament(
+            "Turniej Szkic",
+            "Szachy",
+            TournamentFormat.Cup,
+            DateTimeOffset.UtcNow.AddDays(5),
+            8,
+            status: TournamentStatus.Draft);
+
+        Assert.Equal(TournamentStatus.Draft, tournament.Status);
+        Assert.False(tournament.IsStarted);
+        Assert.False(tournament.CanRegisterTeam());
+    }
+
+    [Fact]
+    public void FullConstructor_InvalidStatus_ShouldThrowArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Tournament(
+            "Turniej",
+            "Szachy",
+            TournamentFormat.Cup,
+            DateTimeOffset.UtcNow,
+            8,
+            status: (TournamentStatus)99));
+    }
+
+    [Fact]
+    public void OpenRegistration_WhenDraft_ShouldSetStatusToRegistrationOpen()
+    {
+        var tournament = new Tournament("Turniej", "Szachy", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8, status: TournamentStatus.Draft);
+
+        tournament.OpenRegistration();
+
+        Assert.Equal(TournamentStatus.RegistrationOpen, tournament.Status);
+        Assert.False(tournament.IsStarted);
+    }
+
+    [Theory]
+    [InlineData(TournamentStatus.RegistrationOpen)]
+    [InlineData(TournamentStatus.InProgress)]
+    [InlineData(TournamentStatus.Finished)]
+    public void OpenRegistration_WhenNotDraft_ShouldThrowBusinessRuleException(TournamentStatus initialStatus)
+    {
+        var tournament = new Tournament("Turniej", "Szachy", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8, status: initialStatus);
+
+        Assert.Throws<BusinessRuleException>(() => tournament.OpenRegistration());
+    }
+
+    [Fact]
+    public void Start_WhenDraft_ShouldThrowBusinessRuleException()
+    {
+        var tournament = new Tournament("Turniej", "Szachy", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8, status: TournamentStatus.Draft);
+
+        Assert.Throws<BusinessRuleException>(() => tournament.Start());
+    }
+
+    [Fact]
+    public void Start_WhenRegistrationOpen_ShouldSetStatusToInProgress()
+    {
+        var tournament = new Tournament("Turniej CS");
+
+        tournament.Start();
+
+        Assert.Equal(TournamentStatus.InProgress, tournament.Status);
+        Assert.True(tournament.IsStarted);
+    }
+
+    [Fact]
+    public void Finish_WhenInProgress_ShouldSetStatusToFinished()
+    {
+        var tournament = new Tournament("Turniej CS");
+        tournament.Start();
+
+        tournament.Finish();
+
+        Assert.Equal(TournamentStatus.Finished, tournament.Status);
+        Assert.True(tournament.IsStarted);
+        Assert.False(tournament.CanRegisterTeam());
+    }
+
+    [Theory]
+    [InlineData(TournamentStatus.Draft)]
+    [InlineData(TournamentStatus.RegistrationOpen)]
+    [InlineData(TournamentStatus.Finished)]
+    public void Finish_WhenNotInProgress_ShouldThrowBusinessRuleException(TournamentStatus initialStatus)
+    {
+        var tournament = new Tournament("Turniej", "Szachy", TournamentFormat.Cup, DateTimeOffset.UtcNow, 8, status: initialStatus);
+
+        Assert.Throws<BusinessRuleException>(() => tournament.Finish());
+    }
 }

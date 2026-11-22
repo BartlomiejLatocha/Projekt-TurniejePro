@@ -336,9 +336,6 @@ namespace TurniejePro.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsAccepted")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -376,9 +373,6 @@ namespace TurniejePro.Data.Migrations
                     b.Property<int>("Format")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsStarted")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("MaxTeams")
                         .HasColumnType("INTEGER");
 
@@ -392,6 +386,11 @@ namespace TurniejePro.Data.Migrations
 
                     b.Property<DateTimeOffset>("StartsAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(2);
 
                     b.HasKey("Id");
 

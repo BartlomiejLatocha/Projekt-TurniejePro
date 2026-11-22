@@ -101,6 +101,16 @@ public class TournamentRegistrationBlockTests
         Assert.Equal(RegistrationBlockReason.DeadlinePassed, reason);
     }
 
+    [Fact]
+    public void GetRegistrationBlockReason_DraftTournament_ReturnsRegistrationNotOpen()
+    {
+        var tournament = new Tournament("Liga Szkolna", "Piłka nożna", TournamentFormat.League, StartsAt, 8, status: TournamentStatus.Draft);
+
+        var reason = tournament.GetRegistrationBlockReason(StartsAt.AddDays(-1));
+
+        Assert.Equal(RegistrationBlockReason.RegistrationNotOpen, reason);
+    }
+
     private static Tournament CreateTournament(int maxTeams) =>
         new("Liga Szkolna", "Piłka nożna", TournamentFormat.League, StartsAt, maxTeams);
 

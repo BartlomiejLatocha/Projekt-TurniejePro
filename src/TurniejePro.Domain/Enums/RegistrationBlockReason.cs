@@ -12,5 +12,8 @@ public enum RegistrationBlockReason
     DeadlinePassed = 2,
 
     /// <summary>Osiągnięto limit drużyn.</summary>
-    LimitReached = 3
+    LimitReached = 3,
+
+    /// <summary>Zapisy nie zostały jeszcze otwarte (turniej w statusie szkicu).</summary>
+    RegistrationNotOpen = 4
 }

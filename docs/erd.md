@@ -26,7 +26,7 @@ erDiagram
         int Format "1: League, 2: Cup"
         DateTimeOffset StartsAt "Data i godzina UTC"
         int MaxTeams "Limit drużyn (2-128)"
-        bool IsStarted "Status rozpoczęcia"
+        int Status "1: Draft, 2: RegistrationOpen, 3: InProgress, 4: Finished"
         Guid OrganizerId "Opcjonalny klucz organizatora"
     }
 
@@ -36,7 +36,7 @@ erDiagram
         string Name "Wymagana, maks. 100 znaków"
         Guid CaptainId "Opcjonalny klucz kapitana"
         string ContactEmail "Opcjonalny e-mail, maks. 100 znaków"
-        bool IsAccepted "Czy zatwierdzona przez organizatora"
+        int Status "1: Pending, 2: Accepted, 3: Rejected"
         DateTimeOffset RegisteredAt "Data zgłoszenia UTC"
     }
 

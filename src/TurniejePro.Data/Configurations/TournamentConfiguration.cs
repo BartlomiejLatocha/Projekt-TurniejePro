@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TurniejePro.Domain;
+using TurniejePro.Domain.Enums;
 
 namespace TurniejePro.Data.Configurations;
 
@@ -27,8 +28,12 @@ public class TournamentConfiguration : IEntityTypeConfiguration<Tournament>
         builder.Property(t => t.MaxTeams)
             .IsRequired();
 
-        builder.Property(t => t.IsStarted)
-            .IsRequired();
+        builder.Property(t => t.Status)
+            .IsRequired()
+            .HasDefaultValue(TournamentStatus.RegistrationOpen)
+            .HasSentinel(0);
+
+        builder.Ignore(t => t.IsStarted);
 
         builder.HasMany(t => t.Teams)
             .WithOne(tm => tm.Tournament)

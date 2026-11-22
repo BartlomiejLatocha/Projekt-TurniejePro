@@ -1,5 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using TurniejePro.Data;
 using TurniejePro.Domain;
 using TurniejePro.Domain.Enums;
@@ -124,5 +126,88 @@ public class TurniejeProDbContextTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+    }
+
+    [Theory]
+    [InlineData(TournamentStatus.Draft, false)]
+    [InlineData(TournamentStatus.RegistrationOpen, false)]
+    [InlineData(TournamentStatus.InProgress, true)]
+    [InlineData(TournamentStatus.Finished, true)]
+    public async Task CanPersistAndRetrieveTournamentStatus(TournamentStatus status, bool expectedIsStarted)
+    {
+        var tournament = new Tournament(
+            "Turniej Statusowy",
+            "Szachy",
+            TournamentFormat.Cup,
+            DateTimeOffset.UtcNow,
+            8,
+            status: status);
+
+        await using (var context = new TurniejeProDbContext(_options))
+        {
+            context.Tournaments.Add(tournament);
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = new TurniejeProDbContext(_options))
+        {
+            var saved = await context.Tournaments.FirstOrDefaultAsync(t => t.Id == tournament.Id);
+
+            Assert.NotNull(saved);
+            Assert.Equal(status, saved.Status);
+            Assert.Equal(expectedIsStarted, saved.IsStarted);
+        }
+    }
+
+    [Fact]
+    public async Task Migration_ShouldConvertIsStartedToTournamentStatusAndDropIsAccepted()
+    {
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+
+        var options = new DbContextOptionsBuilder<TurniejeProDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        var openTournamentId = Guid.NewGuid();
+        var startedTournamentId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+
+        await using (var context = new TurniejeProDbContext(options))
+        {
+            var migrator = context.Database.GetService<IMigrator>();
+            await migrator.MigrateAsync("20261108161056_AddPositionAndIsByeToMatch");
+
+            await context.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO Tournaments (Id, Name, Discipline, Format, StartsAt, MaxTeams, IsStarted)
+                VALUES ({0}, 'Otwarty', 'Szachy', 1, '2030-01-01T00:00:00+00:00', 8, 0);
+                INSERT INTO Tournaments (Id, Name, Discipline, Format, StartsAt, MaxTeams, IsStarted)
+                VALUES ({1}, 'Rozpoczęty', 'Szachy', 1, '2030-01-01T00:00:00+00:00', 8, 1);
+                INSERT INTO Teams (Id, TournamentId, Name, IsAccepted, Status, RegisteredAt)
+                VALUES ({2}, {0}, 'Drużyna', 1, 2, '2026-01-01T00:00:00+00:00');
+                """,
+                openTournamentId,
+                startedTournamentId,
+                teamId);
+
+            await migrator.MigrateAsync();
+        }
+
+        await using (var context = new TurniejeProDbContext(options))
+        {
+            var openTournament = await context.Tournaments.FindAsync(openTournamentId);
+            var startedTournament = await context.Tournaments.FindAsync(startedTournamentId);
+
+            Assert.NotNull(openTournament);
+            Assert.Equal(TournamentStatus.RegistrationOpen, openTournament.Status);
+            Assert.False(openTournament.IsStarted);
+
+            Assert.NotNull(startedTournament);
+            Assert.Equal(TournamentStatus.InProgress, startedTournament.Status);
+            Assert.True(startedTournament.IsStarted);
+
+            Assert.Empty(await context.Database.GetPendingMigrationsAsync());
+        }
     }
 }

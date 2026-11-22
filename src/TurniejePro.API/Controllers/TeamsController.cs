@@ -270,6 +270,7 @@ public class TeamsController : ControllerBase
         Domain.Enums.RegistrationBlockReason.TournamentStarted => "Turniej został już rozpoczęty.",
         Domain.Enums.RegistrationBlockReason.DeadlinePassed => "Upłynął termin zgłoszeń (termin rozpoczęcia turnieju).",
         Domain.Enums.RegistrationBlockReason.LimitReached => $"Osiągnięto maksymalny limit zarejestrowanych drużyn ({maxTeams}).",
+        Domain.Enums.RegistrationBlockReason.RegistrationNotOpen => "Zapisy do turnieju nie zostały jeszcze otwarte.",
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Nieznany powód blokady zgłoszeń.")
     };
 }

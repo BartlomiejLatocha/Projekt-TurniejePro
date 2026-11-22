@@ -11,7 +11,8 @@ public class Tournament
     public TournamentFormat Format { get; set; } = TournamentFormat.Cup;
     public DateTimeOffset StartsAt { get; set; }
     public int MaxTeams { get; set; } = 16;
-    public bool IsStarted { get; private set; }
+    public TournamentStatus Status { get; private set; } = TournamentStatus.RegistrationOpen;
+    public bool IsStarted => Status is TournamentStatus.InProgress or TournamentStatus.Finished;
     public Guid? OrganizerId { get; set; }
 
     public ICollection<Team> Teams { get; set; } = new List<Team>();
@@ -30,7 +31,7 @@ public class Tournament
         Format = TournamentFormat.Cup;
         StartsAt = DateTimeOffset.UtcNow;
         MaxTeams = 16;
-        IsStarted = false;
+        Status = TournamentStatus.RegistrationOpen;
     }
 
     public Tournament(
@@ -39,7 +40,8 @@ public class Tournament
         TournamentFormat format,
         DateTimeOffset startsAt,
         int maxTeams,
-        Guid? organizerId = null)
+        Guid? organizerId = null,
+        TournamentStatus status = TournamentStatus.RegistrationOpen)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -51,6 +53,11 @@ public class Tournament
             throw new ArgumentOutOfRangeException(nameof(maxTeams), "Turniej musi dopuszczać co najmniej 2 drużyny.");
         }
 
+        if (!Enum.IsDefined(status))
+        {
+            throw new ArgumentOutOfRangeException(nameof(status), "Nieprawidłowy status turnieju.");
+        }
+
         Id = Guid.NewGuid();
         Name = name;
         Discipline = string.IsNullOrWhiteSpace(discipline) ? "Ogólna" : discipline;
@@ -58,7 +65,17 @@ public class Tournament
         StartsAt = startsAt;
         MaxTeams = maxTeams;
         OrganizerId = organizerId;
-        IsStarted = false;
+        Status = status;
+    }
+
+    public void OpenRegistration()
+    {
+        if (Status != TournamentStatus.Draft)
+        {
+            throw new BusinessRuleException("Zapisy można otworzyć tylko dla turnieju w statusie szkicu.");
+        }
+
+        Status = TournamentStatus.RegistrationOpen;
     }
 
     public void Start()
@@ -68,14 +85,29 @@ public class Tournament
             throw new BusinessRuleException("Turniej został już rozpoczęty.");
         }
 
-        IsStarted = true;
+        if (Status != TournamentStatus.RegistrationOpen)
+        {
+            throw new BusinessRuleException("Nie można rozpocząć turnieju, który nie ma otwartych zapisów.");
+        }
+
+        Status = TournamentStatus.InProgress;
     }
 
-    public bool CanRegisterTeam() => !IsStarted && Teams.Count < MaxTeams;
+    public void Finish()
+    {
+        if (Status != TournamentStatus.InProgress)
+        {
+            throw new BusinessRuleException("Można zakończyć tylko turniej będący w trakcie.");
+        }
+
+        Status = TournamentStatus.Finished;
+    }
+
+    public bool CanRegisterTeam() => Status == TournamentStatus.RegistrationOpen && Teams.Count < MaxTeams;
 
     /// <summary>
     /// Zwraca powód, dla którego turniej nie przyjmuje zgłoszeń w podanej chwili, albo null, gdy zgłoszenia są otwarte.
-    /// Zgłoszenia zamyka rozpoczęcie turnieju, upływ jego terminu (<see cref="StartsAt"/>) i osiągnięcie limitu drużyn.
+    /// Zgłoszenia zamyka rozpoczęcie turnieju, status szkicu, upływ terminu (<see cref="StartsAt"/>) i osiągnięcie limitu drużyn.
     /// Gdy zachodzi kilka powodów naraz, zwracany jest pierwszy z tej listy.
     /// </summary>
     public RegistrationBlockReason? GetRegistrationBlockReason(DateTimeOffset now)
@@ -83,6 +115,11 @@ public class Tournament
         if (IsStarted)
         {
             return RegistrationBlockReason.TournamentStarted;
+        }
+
+        if (Status != TournamentStatus.RegistrationOpen)
+        {
+            return RegistrationBlockReason.RegistrationNotOpen;
         }
 
         if (now >= StartsAt)

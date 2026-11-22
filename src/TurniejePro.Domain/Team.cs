@@ -11,7 +11,6 @@ public class Team
     public Tournament? Tournament { get; set; }
     public Guid? CaptainId { get; set; }
     public string? ContactEmail { get; set; }
-    public bool IsAccepted { get; private set; }
     public TeamRegistrationStatus Status { get; private set; } = TeamRegistrationStatus.Pending;
     public DateTimeOffset RegisteredAt { get; set; }
 
@@ -33,26 +32,22 @@ public class Team
         TournamentId = tournamentId;
         CaptainId = captainId;
         ContactEmail = contactEmail;
-        IsAccepted = false;
         Status = TeamRegistrationStatus.Pending;
         RegisteredAt = DateTimeOffset.UtcNow;
     }
 
     public void Accept()
     {
-        IsAccepted = true;
         Status = TeamRegistrationStatus.Accepted;
     }
 
     public void Reject()
     {
-        IsAccepted = false;
         Status = TeamRegistrationStatus.Rejected;
     }
 
     public void ResetToPending()
     {
-        IsAccepted = false;
         Status = TeamRegistrationStatus.Pending;
     }
 
