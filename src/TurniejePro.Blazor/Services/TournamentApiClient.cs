@@ -59,6 +59,88 @@ public sealed class TournamentApiClient(HttpClient http)
     public Task<TournamentCreationResult> StartTournamentAsync(Guid tournamentId, string accessToken, CancellationToken cancellationToken = default) =>
         SendStatusChangeAsync($"api/v1/tournaments/{tournamentId}/start", accessToken, cancellationToken);
 
+    /// <summary>
+    /// Generuje terminarz turnieju (POST). Wymaga tokenu organizatora. Błąd (np. terminarz już istnieje) wraca jako komunikat.
+    /// </summary>
+    public async Task<ScheduleLoadResult> GenerateScheduleAsync(Guid tournamentId, string accessToken, CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Post, $"api/v1/tournaments/{tournamentId}/schedule");
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await http.SendAsync(message, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new ScheduleLoadResult(null, await ApiError.ReadMessageAsync(response, cancellationToken));
+            }
+
+            var schedule = await response.Content.ReadFromJsonAsync<ScheduleResponse>(cancellationToken);
+            return schedule is null
+                ? new ScheduleLoadResult(null, "Serwer zwrócił pustą odpowiedź.")
+                : new ScheduleLoadResult(schedule, null);
+        }
+        catch (HttpRequestException)
+        {
+            return new ScheduleLoadResult(null, "Nie udało się połączyć z serwerem API.");
+        }
+    }
+
+    /// <summary>
+    /// Aktualizuje dane turnieju (PUT). Wymaga tokenu organizatora.
+    /// </summary>
+    public async Task<TournamentCreationResult> UpdateTournamentAsync(
+        Guid tournamentId,
+        UpdateTournamentRequest request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Put, $"api/v1/tournaments/{tournamentId}")
+        {
+            Content = JsonContent.Create(request)
+        };
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await http.SendAsync(message, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return TournamentCreationResult.Failure(await ApiError.ReadMessageAsync(response, cancellationToken));
+            }
+
+            var tournament = await response.Content.ReadFromJsonAsync<TournamentDetailsResponse>(cancellationToken);
+            return tournament is null
+                ? TournamentCreationResult.Failure("Serwer zwrócił pustą odpowiedź.")
+                : TournamentCreationResult.Success(tournament);
+        }
+        catch (HttpRequestException)
+        {
+            return TournamentCreationResult.Failure("Nie udało się połączyć z serwerem API.");
+        }
+    }
+
+    /// <summary>
+    /// Usuwa turniej (DELETE). Wymaga tokenu organizatora. Zwraca null przy sukcesie albo komunikat o błędzie.
+    /// </summary>
+    public async Task<string?> DeleteTournamentAsync(Guid tournamentId, string accessToken, CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Delete, $"api/v1/tournaments/{tournamentId}");
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await http.SendAsync(message, cancellationToken);
+            return response.IsSuccessStatusCode
+                ? null
+                : await ApiError.ReadMessageAsync(response, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return "Nie udało się połączyć z serwerem API.";
+        }
+    }
+
     private async Task<TournamentCreationResult> SendStatusChangeAsync(string url, string accessToken, CancellationToken cancellationToken)
     {
         using var message = new HttpRequestMessage(HttpMethod.Patch, url);
