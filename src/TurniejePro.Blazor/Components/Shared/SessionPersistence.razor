@@ -1,0 +1,88 @@
+@using System.Security.Cryptography
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@using Microsoft.JSInterop
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Auth
+@implements IDisposable
+@inject AuthSession Session
+@inject ProtectedLocalStorage Storage
+
+@* Niewidoczny komponent: zapisuje sesję w przeglądarce po zalogowaniu i odtwarza ją po odświeżeniu strony.
+   Dane są szyfrowane kluczem serwera (ProtectedLocalStorage), a wygasły token nie jest odtwarzany. *@
+
+@code {
+    private const string StorageKey = "tp-auth-session";
+
+    private bool restoreAttempted;
+
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Pamięć przeglądarki jest dostępna dopiero po renderowaniu interaktywnym, więc odtwarzamy raz, po pierwszym renderze.
+        if (!firstRender || restoreAttempted)
+        {
+            return;
+        }
+
+        restoreAttempted = true;
+
+        try
+        {
+            var stored = await Storage.GetAsync<AuthResponse>(StorageKey);
+            if (stored.Success && stored.Value is { } saved && !Session.Restore(saved))
+            {
+                await Storage.DeleteAsync(StorageKey);
+            }
+        }
+        catch (CryptographicException)
+        {
+            // Zapis nie da się odszyfrować (np. po restarcie serwera zmieniły się klucze): traktujemy jak brak sesji.
+            await SafeDeleteAsync();
+        }
+        catch (JSException)
+        {
+            // Pamięć przeglądarki niedostępna (np. prywatne okno): użytkownik zostaje niezalogowany.
+        }
+    }
+
+    // Zdarzenie może przyjść z wątku timera wygaśnięcia, więc zapis wykonujemy w kontekście renderera.
+    private void OnSessionChanged() => _ = InvokeAsync(SaveAsync);
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            if (Session.Current is { } current)
+            {
+                await Storage.SetAsync(StorageKey, current);
+            }
+            else
+            {
+                await Storage.DeleteAsync(StorageKey);
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Połączenie z przeglądarką zamknięte: nic do zapisania.
+        }
+        catch (JSException)
+        {
+            // Pamięć przeglądarki niedostępna: sesja działa tylko w bieżącym obwodzie.
+        }
+    }
+
+    private async Task SafeDeleteAsync()
+    {
+        try
+        {
+            await Storage.DeleteAsync(StorageKey);
+        }
+        catch (JSException)
+        {
+            // Jak wyżej: nic nie da się usunąć, a sesja i tak nie zostanie odtworzona.
+        }
+    }
+}

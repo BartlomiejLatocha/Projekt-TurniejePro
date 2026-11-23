@@ -6,6 +6,7 @@
 @inject AuthApiClient AuthApi
 @inject AuthSession Session
 @inject NavigationManager Navigation
+@implements IDisposable
 
 <PageTitle>Logowanie</PageTitle>
 
@@ -15,6 +16,11 @@
 <EditForm Model="model" OnValidSubmit="HandleValidSubmitAsync" class="tp-auth-card">
     <DataAnnotationsValidator />
     <ValidationSummary class="text-danger" role="alert" />
+
+    @if (Session.WasExpired && errorMessage is null)
+    {
+        <div class="alert alert-warning" role="status">Sesja wygasła. Zaloguj się ponownie.</div>
+    }
 
     @if (errorMessage is not null)
     {
@@ -41,6 +47,13 @@
     private LoginModel model = new();
     private string? errorMessage;
     private bool isSubmitting;
+
+    // Komunikat o wygaśnięciu pojawia się po odtworzeniu sesji już po pierwszym renderze, więc reagujemy na zmianę.
+    protected override void OnInitialized() => Session.Changed += OnSessionChanged;
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
 
     private async Task HandleValidSubmitAsync()
     {
