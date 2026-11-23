@@ -13,3 +13,18 @@ Raport zawiera terminarz w kolejności rund i meczów oraz tabelę w kolejności
 `TournamentExportQuery.GetAsync(tournamentId, cancellationToken)` jest zarejestrowane w DI. Zwraca dane oparte na mapowaniu z endpointów `/schedule` i `/standings`. Dla nieistniejącego turnieju zgłasza domenowy `NotFoundException` obsługiwany przez globalny handler 404.
 
 `TournamentCsvExport.Generate(data)` zwraca bajty pliku gotowe do zwrócenia przez endpoint KAN-311 z typem `TournamentCsvExport.ContentType` i rozszerzeniem `.csv`.
+
+## Pobieranie pliku (KAN-311)
+
+`GET /api/v1/tournaments/{tournamentId}/export/{format}`, gdzie `format` to `csv` albo `pdf` (wielkość liter nie ma znaczenia). Endpoint jest publiczny, tak jak terminarz i tabela.
+
+| Sytuacja | Odpowiedź |
+|---|---|
+| Turniej istnieje | `200` z plikiem i nagłówkiem `Content-Disposition: attachment` |
+| Format inny niż csv/pdf | `400` „Nieobsługiwany format” |
+| Turniej nie istnieje | `404` (globalny handler, `NotFoundException`) |
+
+Nazwa pliku powstaje z nazwy turnieju i daty pobrania, np. `liga-osiedlowa-bemowo-2026-11-23.csv`. Zawiera tylko małe litery ASCII, cyfry i myślniki (polskie znaki bez ogonków), więc działa w każdym systemie plików (`ExportFileName`).
+
+Dla UI (KAN-314) wystarczy zwykły link do tego adresu: przeglądarka pobierze plik pod podaną nazwą.
+
