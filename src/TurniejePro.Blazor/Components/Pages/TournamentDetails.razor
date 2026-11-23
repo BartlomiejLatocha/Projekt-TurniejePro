@@ -1,0 +1,181 @@
+@page "/tournaments/{TournamentId:guid}"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Teams
+@using TurniejePro.Contracts.Tournaments
+@inject TournamentApiClient TournamentApi
+@inject TeamApiClient TeamApi
+
+<PageTitle>Turniej</PageTitle>
+
+@if (isLoading)
+{
+    <p><em>Ładowanie turnieju...</em></p>
+}
+else if (tournament is null)
+{
+    <div class="alert alert-warning" role="status">Nie znaleziono turnieju.</div>
+}
+else
+{
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <span class="tp-discipline-badge"><DisciplineIcon Code="@tournament.Discipline" Size="28" /></span>
+        <div>
+            <h1 class="h3 mb-0">@tournament.Name</h1>
+            <span class="text-muted">@DisciplineCatalog.NameOf(tournament.Discipline) · @FormatName(tournament.Format)</span>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        @foreach (var tab in Tabs)
+        {
+            <li class="nav-item" role="presentation">
+                <button type="button" role="tab" class="nav-link @(activeTab == tab ? "active" : "")" aria-selected="@(activeTab == tab)" @onclick="() => SelectTab(tab)">@TabName(tab)</button>
+            </li>
+        }
+    </ul>
+
+    @switch (activeTab)
+    {
+        case TournamentTab.Info:
+            <dl class="row">
+                <dt class="col-sm-3">Dyscyplina</dt>
+                <dd class="col-sm-9">@DisciplineCatalog.NameOf(tournament.Discipline)</dd>
+
+                <dt class="col-sm-3">System rozgrywek</dt>
+                <dd class="col-sm-9">@FormatName(tournament.Format)</dd>
+
+                <dt class="col-sm-3">Termin rozpoczęcia</dt>
+                <dd class="col-sm-9">@tournament.StartsAt.ToLocalTime().ToString("g")</dd>
+
+                <dt class="col-sm-3">Limit drużyn</dt>
+                <dd class="col-sm-9">@tournament.TeamsCount / @tournament.MaxTeams</dd>
+
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9">@StatusLabel(tournament.Status)</dd>
+
+                @if (tournament.Format != TournamentFormat.Cup)
+                {
+                    <dt class="col-sm-3">Punktacja</dt>
+                    <dd class="col-sm-9">@ScoringText(tournament.ScoringRules)</dd>
+                }
+            </dl>
+            break;
+
+        case TournamentTab.Teams:
+            @if (acceptedTeams.Count == 0)
+            {
+                <p class="text-muted">Brak zaakceptowanych drużyn.</p>
+            }
+            else
+            {
+                <ul class="list-unstyled">
+                    @foreach (var team in acceptedTeams)
+                    {
+                        <li class="d-flex align-items-center gap-2 mb-2">
+                            <TeamLogo TeamId="@team.Id" HasLogo="@team.HasLogo" Name="@team.Name" Size="28" />
+                            <span>@team.Name</span>
+                        </li>
+                    }
+                </ul>
+            }
+            break;
+
+        case TournamentTab.Schedule:
+            <TournamentSchedule TournamentId="TournamentId" />
+            break;
+
+        case TournamentTab.Standings:
+            <TournamentStandings TournamentId="TournamentId" />
+            break;
+
+        case TournamentTab.Bracket:
+            <TournamentBracket TournamentId="TournamentId" />
+            break;
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid TournamentId { get; set; }
+
+    private enum TournamentTab
+    {
+        Info,
+        Teams,
+        Schedule,
+        Standings,
+        Bracket
+    }
+
+    private TournamentDetailsResponse? tournament;
+    private IReadOnlyList<TeamResponse> acceptedTeams = [];
+    private TournamentTab activeTab = TournamentTab.Info;
+    private bool isLoading = true;
+
+    // Tabela dla ligi i grup, drabinka dla pucharu i grup + pucharu.
+    private IReadOnlyList<TournamentTab> Tabs
+    {
+        get
+        {
+            var tabs = new List<TournamentTab> { TournamentTab.Info, TournamentTab.Teams, TournamentTab.Schedule };
+
+            if (tournament?.Format is TournamentFormat.League or TournamentFormat.GroupsAndCup)
+            {
+                tabs.Add(TournamentTab.Standings);
+            }
+
+            if (tournament?.Format is TournamentFormat.Cup or TournamentFormat.GroupsAndCup)
+            {
+                tabs.Add(TournamentTab.Bracket);
+            }
+
+            return tabs;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+
+        var teams = await TeamApi.GetTeamsAsync(TournamentId);
+        acceptedTeams = (teams ?? Array.Empty<TeamResponse>())
+            .Where(t => t.Status == TeamRegistrationStatus.Accepted)
+            .ToList();
+
+        isLoading = false;
+    }
+
+    private void SelectTab(TournamentTab tab) => activeTab = tab;
+
+    private string TabName(TournamentTab tab) => tab switch
+    {
+        TournamentTab.Info => "Informacje",
+        TournamentTab.Teams => "Drużyny",
+        TournamentTab.Schedule => "Terminarz",
+        TournamentTab.Standings => tournament?.Format == TournamentFormat.GroupsAndCup ? "Tabela grup" : "Tabela",
+        TournamentTab.Bracket => "Drabinka",
+        _ => tab.ToString()
+    };
+
+    private static string FormatName(TournamentFormat format) => format switch
+    {
+        TournamentFormat.League => "Liga",
+        TournamentFormat.Cup => "Puchar",
+        TournamentFormat.GroupsAndCup => "Grupy + puchar",
+        _ => format.ToString()
+    };
+
+    private static string StatusLabel(TournamentStatus status) => status switch
+    {
+        TournamentStatus.Draft => "Szkic",
+        TournamentStatus.RegistrationOpen => "Zapisy",
+        TournamentStatus.InProgress => "W trakcie",
+        TournamentStatus.Finished => "Zakończony",
+        _ => status.ToString()
+    };
+
+    private static string ScoringText(ScoringRulesRequest rules) => rules.AllowDraws
+        ? $"wygrana {rules.PointsForWin}, remis {rules.PointsForDraw}, porażka {rules.PointsForLoss}"
+        : $"wygrana {rules.PointsForWin}, porażka {rules.PointsForLoss} (bez remisów)";
+}
