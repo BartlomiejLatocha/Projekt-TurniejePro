@@ -1,5 +1,6 @@
 using TurniejePro.Api.Auth;
 using TurniejePro.Api.Errors;
+using TurniejePro.Api.Exports;
 using TurniejePro.Api.Startup;
 using TurniejePro.Data;
 using TurniejePro.Domain.Scheduling;
@@ -11,6 +12,7 @@ builder.Services.AddDataServices(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddScoped<ScheduleService>();
 builder.Services.AddScoped<MatchResultService>();
+builder.Services.AddScoped<TournamentExportQuery>();
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddApiErrorHandling();
