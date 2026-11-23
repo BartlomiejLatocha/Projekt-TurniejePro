@@ -5,6 +5,8 @@
 @using TurniejePro.Contracts.Tournaments
 @inject TournamentApiClient TournamentApi
 @inject TeamApiClient TeamApi
+@inject AuthSession Session
+@inject NavigationManager Navigation
 
 <PageTitle>Turniej</PageTitle>
 
@@ -26,6 +28,46 @@ else
         </div>
     </div>
 
+    @if (successMessage is not null)
+    {
+        <div class="alert alert-success" role="status">@successMessage</div>
+    }
+
+    <RoleView RequireOwner="true" Owner="tournament.OrganizerId">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 text-uppercase text-muted mb-3">Panel organizatora</h2>
+
+                @if (managementError is not null)
+                {
+                    <div class="alert alert-danger" role="alert">@managementError</div>
+                }
+
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    @* Generowanie terminarza rozpoczyna turniej, a rozpoczętego turnieju nie można usunąć (API zwraca błąd). *@
+                    @if (confirmAction is null)
+                    {
+                        @if (canChangeLifecycle)
+                        {
+                            <button type="button" class="btn btn-primary" disabled="@isBusy" @onclick="() => confirmAction = ManagementAction.Generate">Generuj terminarz</button>
+                        }
+                        <a class="btn btn-outline-secondary" href="/tournaments/@TournamentId/edit">Edytuj turniej</a>
+                        @if (canChangeLifecycle)
+                        {
+                            <button type="button" class="btn btn-outline-danger" disabled="@isBusy" @onclick="() => confirmAction = ManagementAction.Delete">Usuń turniej</button>
+                        }
+                    }
+                    else
+                    {
+                        <span class="me-2">@ConfirmText(confirmAction.Value)</span>
+                        <button type="button" class="btn btn-danger" disabled="@isBusy" @onclick="ConfirmAsync">Potwierdź</button>
+                        <button type="button" class="btn btn-outline-secondary" disabled="@isBusy" @onclick="() => confirmAction = null">Anuluj</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </RoleView>
+
     <ul class="nav nav-tabs mb-4" role="tablist">
         @foreach (var tab in Tabs)
         {
@@ -35,6 +77,8 @@ else
         }
     </ul>
 
+    @* Klucz wymusza ponowne załadowanie zakładki po zmianie danych (np. po wygenerowaniu terminarza). *@
+    <div @key="contentVersion">
     @switch (activeTab)
     {
         case TournamentTab.Info:
@@ -93,6 +137,7 @@ else
             <TournamentBracket TournamentId="TournamentId" />
             break;
     }
+    </div>
 }
 
 @code {
@@ -108,10 +153,86 @@ else
         Bracket
     }
 
+    private enum ManagementAction
+    {
+        Generate,
+        Delete
+    }
+
     private TournamentDetailsResponse? tournament;
     private IReadOnlyList<TeamResponse> acceptedTeams = [];
     private TournamentTab activeTab = TournamentTab.Info;
     private bool isLoading = true;
+    private bool canChangeLifecycle => tournament?.Status is TournamentStatus.Draft or TournamentStatus.RegistrationOpen;
+
+    private ManagementAction? confirmAction;
+    private bool isBusy;
+    private string? managementError;
+    private string? successMessage;
+    private int contentVersion;
+
+    // Akcje organizatora wymagają potwierdzenia: pierwszy klik pyta, drugi wykonuje.
+    private async Task ConfirmAsync()
+    {
+        var action = confirmAction;
+        if (action is null)
+        {
+            return;
+        }
+
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            managementError = "Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie.";
+            confirmAction = null;
+            return;
+        }
+
+        isBusy = true;
+        managementError = null;
+        successMessage = null;
+
+        try
+        {
+            if (action == ManagementAction.Generate)
+            {
+                var result = await TournamentApi.GenerateScheduleAsync(TournamentId, accessToken);
+                if (result.Schedule is null)
+                {
+                    managementError = result.ErrorMessage;
+                }
+                else
+                {
+                    successMessage = "Terminarz został wygenerowany.";
+                    activeTab = TournamentTab.Schedule;
+                    contentVersion++;
+                }
+            }
+            else
+            {
+                var error = await TournamentApi.DeleteTournamentAsync(TournamentId, accessToken);
+                if (error is null)
+                {
+                    Navigation.NavigateTo("/tournaments");
+                    return;
+                }
+
+                managementError = error;
+            }
+        }
+        finally
+        {
+            isBusy = false;
+            confirmAction = null;
+        }
+    }
+
+    private static string ConfirmText(ManagementAction action) => action switch
+    {
+        ManagementAction.Generate => "Wygenerować terminarz dla zaakceptowanych drużyn?",
+        ManagementAction.Delete => "Usunąć turniej? Tej operacji nie da się cofnąć.",
+        _ => string.Empty
+    };
 
     // Tabela dla ligi i grup, drabinka dla pucharu i grup + pucharu.
     private IReadOnlyList<TournamentTab> Tabs

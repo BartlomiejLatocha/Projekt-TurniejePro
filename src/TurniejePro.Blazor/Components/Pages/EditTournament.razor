@@ -1,0 +1,175 @@
+@page "/tournaments/{TournamentId:guid}/edit"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Tournaments
+@implements IDisposable
+@inject AuthSession Session
+@inject TournamentApiClient TournamentApi
+@inject NavigationManager Navigation
+
+<PageTitle>Edycja turnieju</PageTitle>
+
+<h1>Edycja turnieju</h1>
+
+@if (isLoading)
+{
+    <p><em>Ładowanie turnieju...</em></p>
+}
+else if (tournament is null)
+{
+    <div class="alert alert-warning" role="status">Nie znaleziono turnieju.</div>
+}
+else if (!canEdit)
+{
+    <div class="alert alert-warning" role="alert">Edycja turnieju jest dostępna tylko dla organizatora tego turnieju.</div>
+}
+else
+{
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="HandleValidSubmitAsync" class="col-lg-8">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" role="alert" />
+
+        <div class="mb-3">
+            <label class="form-label" for="edit-name">Nazwa turnieju</label>
+            <InputText id="edit-name" class="form-control" @bind-Value="model.Name" />
+            <ValidationMessage For="() => model.Name" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="edit-discipline">Dyscyplina</label>
+            <InputSelect id="edit-discipline" class="form-select" @bind-Value="model.Discipline">
+                @foreach (var discipline in DisciplineCatalog.All)
+                {
+                    <option value="@discipline.Code">@discipline.Name</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="() => model.Discipline" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="edit-format">System rozgrywek</label>
+            <InputSelect id="edit-format" class="form-select" @bind-Value="model.Format">
+                <option value="@TournamentFormat.League">Liga (każdy z każdym)</option>
+                <option value="@TournamentFormat.Cup">Puchar (drabinka)</option>
+                <option value="@TournamentFormat.GroupsAndCup">Grupy + puchar (faza grupowa, potem drabinka)</option>
+            </InputSelect>
+            <ValidationMessage For="() => model.Format" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="edit-starts">Termin rozpoczęcia</label>
+            <InputDate id="edit-starts" Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="model.StartsAt" />
+            <ValidationMessage For="() => model.StartsAt" class="text-danger" />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label" for="edit-max">Limit drużyn</label>
+            <InputNumber id="edit-max" class="form-control" @bind-Value="model.MaxTeams" />
+            <ValidationMessage For="() => model.MaxTeams" class="text-danger" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Zapisz zmiany</button>
+        <a class="btn btn-outline-secondary ms-2" href="/tournaments/@TournamentId">Anuluj</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public Guid TournamentId { get; set; }
+
+    private TournamentDetailsResponse? tournament;
+    private TournamentEditForm model = new();
+    private string? errorMessage;
+    private bool isLoading = true;
+    private bool canEdit;
+    private bool isSubmitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+
+        tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+        if (tournament is not null)
+        {
+            model = new TournamentEditForm
+            {
+                Name = tournament.Name,
+                Discipline = tournament.Discipline,
+                Format = tournament.Format,
+                StartsAt = tournament.StartsAt.ToLocalTime().DateTime,
+                MaxTeams = tournament.MaxTeams
+            };
+        }
+
+        UpdateAccess();
+        isLoading = false;
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged()
+    {
+        UpdateAccess();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateAccess() => canEdit = Session.IsOwner(tournament?.OrganizerId);
+
+    private async Task HandleValidSubmitAsync()
+    {
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            errorMessage = "Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie.";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            // Termin z formularza traktujemy jako czas lokalny i wysyłamy w UTC, zgodnie z kontraktem API.
+            var startsAt = new DateTimeOffset(DateTime.SpecifyKind(model.StartsAt, DateTimeKind.Local)).ToUniversalTime();
+            var request = new UpdateTournamentRequest(model.Name, model.Discipline, model.Format, startsAt, model.MaxTeams);
+
+            var result = await TournamentApi.UpdateTournamentAsync(TournamentId, request, accessToken);
+            if (result.Tournament is not null)
+            {
+                Navigation.NavigateTo($"/tournaments/{TournamentId}");
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private sealed class TournamentEditForm
+    {
+        [Required(ErrorMessage = "Podaj nazwę turnieju.")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "Nazwa turnieju musi mieć od 3 do 100 znaków.")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Wybierz dyscyplinę.")]
+        public string Discipline { get; set; } = DisciplineCatalog.All[0].Code;
+
+        public TournamentFormat Format { get; set; } = TournamentFormat.League;
+
+        [Required(ErrorMessage = "Podaj termin rozpoczęcia.")]
+        public DateTime StartsAt { get; set; } = DateTime.Now.AddDays(14).Date.AddHours(18);
+
+        [Range(2, 128, ErrorMessage = "Limit drużyn musi być z zakresu 2–128.")]
+        public int MaxTeams { get; set; } = 8;
+    }
+}
