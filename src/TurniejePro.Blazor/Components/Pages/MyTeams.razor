@@ -1,0 +1,116 @@
+@page "/me/teams"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Profile
+@using TurniejePro.Contracts.Teams
+@using TurniejePro.Contracts.Tournaments
+@implements IDisposable
+@inject AuthSession Session
+@inject ProfileApiClient ProfileApi
+
+<PageTitle>Moje drużyny</PageTitle>
+
+<h1>Moje drużyny</h1>
+
+@if (!Session.IsLoggedIn)
+{
+    <div class="alert alert-warning" role="alert">Ta strona wymaga zalogowania. <a href="/login">Zaloguj się</a>.</div>
+}
+else if (isLoading)
+{
+    <p><em>Ładowanie drużyn...</em></p>
+}
+else if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+else if (teams is null || teams.Count == 0)
+{
+    <p class="text-muted">Nie jesteś kapitanem żadnej drużyny. <a href="/teams/register">Zgłoś drużynę</a> do turnieju.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Drużyna</th>
+                    <th>Turniej</th>
+                    <th>Zgłoszenie</th>
+                    <th>Etap turnieju</th>
+                    <th>Termin</th>
+                    <th class="text-center">Zawodnicy</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var team in teams)
+                {
+                    <tr>
+                        <td><span class="d-inline-flex align-items-center"><TeamLogo TeamId="@team.Id" HasLogo="@team.HasLogo" Name="@team.Name" Size="24" />@team.Name</span></td>
+                        <td><a href="/tournaments/@team.TournamentId">@team.TournamentName</a></td>
+                        <td>@RegistrationLabel(team.Status)</td>
+                        <td>@StatusLabel(team.TournamentStatus)</td>
+                        <td>@team.TournamentStartsAt.ToLocalTime().ToString("g")</td>
+                        <td class="text-center">@team.PlayersCount</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<MyTeamResponse>? teams;
+    private string? errorMessage;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+        await LoadAsync();
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    // Sesja przychodzi po odświeżeniu strony już po pierwszym renderze, więc ładujemy dane także po zmianie sesji.
+    private void OnSessionChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    private async Task LoadAsync()
+    {
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            teams = null;
+            errorMessage = null;
+            isLoading = false;
+            return;
+        }
+
+        isLoading = true;
+        var result = await ProfileApi.GetMyTeamsAsync(accessToken);
+        teams = result.Items;
+        errorMessage = result.ErrorMessage;
+        isLoading = false;
+    }
+
+    private static string RegistrationLabel(TeamRegistrationStatus status) => status switch
+    {
+        TeamRegistrationStatus.Pending => "Oczekuje",
+        TeamRegistrationStatus.Accepted => "Zaakceptowana",
+        TeamRegistrationStatus.Rejected => "Odrzucona",
+        _ => status.ToString()
+    };
+
+    private static string StatusLabel(TournamentStatus status) => status switch
+    {
+        TournamentStatus.Draft => "Szkic",
+        TournamentStatus.RegistrationOpen => "Zapisy",
+        TournamentStatus.InProgress => "W trakcie",
+        TournamentStatus.Finished => "Zakończony",
+        _ => status.ToString()
+    };
+}

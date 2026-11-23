@@ -17,6 +17,7 @@ builder.Services.AddHttpClient<AuthApiClient>(ConfigureApiBaseAddress);
 builder.Services.AddHttpClient<TeamApiClient>(ConfigureApiBaseAddress);
 builder.Services.AddHttpClient<TournamentApiClient>(ConfigureApiBaseAddress);
 builder.Services.AddHttpClient<MatchApiClient>(ConfigureApiBaseAddress);
+builder.Services.AddHttpClient<ProfileApiClient>(ConfigureApiBaseAddress);
 builder.Services.AddScoped<AuthSession>();
 
 var app = builder.Build();
