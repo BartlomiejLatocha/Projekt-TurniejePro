@@ -1,0 +1,126 @@
+@page "/me/tournaments"
+@rendermode InteractiveServer
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Profile
+@using TurniejePro.Contracts.Tournaments
+@implements IDisposable
+@inject AuthSession Session
+@inject ProfileApiClient ProfileApi
+
+<PageTitle>Moje turnieje</PageTitle>
+
+<h1>Moje turnieje</h1>
+
+@if (!Session.IsLoggedIn)
+{
+    <div class="alert alert-warning" role="alert">Ta strona wymaga zalogowania. <a href="/login">Zaloguj się</a>.</div>
+}
+else if (isLoading)
+{
+    <p><em>Ładowanie turniejów...</em></p>
+}
+else if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+else if (tournaments is null || tournaments.Count == 0)
+{
+    <p class="text-muted">Nie organizujesz jeszcze żadnych turniejów. <a href="/tournaments/new">Utwórz nowy turniej</a>.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Nazwa</th>
+                    <th>Dyscyplina</th>
+                    <th>System</th>
+                    <th>Etap</th>
+                    <th>Termin</th>
+                    <th class="text-center">Drużyny</th>
+                    <th>Zgłoszenia</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var tournament in tournaments)
+                {
+                    <tr>
+                        <td><a href="/tournaments/@tournament.Id">@tournament.Name</a></td>
+                        <td>@DisciplineCatalog.NameOf(tournament.Discipline)</td>
+                        <td>@FormatName(tournament.Format)</td>
+                        <td>@StatusLabel(tournament.Status)</td>
+                        <td>@tournament.StartsAt.ToLocalTime().ToString("g")</td>
+                        <td class="text-center">@tournament.AcceptedTeams / @tournament.MaxTeams</td>
+                        <td>
+                            @if (tournament.PendingTeams > 0)
+                            {
+                                <a href="/tournaments/@tournament.Id/teams">Czeka @tournament.PendingTeams</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<MyTournamentResponse>? tournaments;
+    private string? errorMessage;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+        await LoadAsync();
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    // Sesja przychodzi po odświeżeniu strony już po pierwszym renderze, więc ładujemy dane także po zmianie sesji.
+    private void OnSessionChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    private async Task LoadAsync()
+    {
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            tournaments = null;
+            errorMessage = null;
+            isLoading = false;
+            return;
+        }
+
+        isLoading = true;
+        var result = await ProfileApi.GetMyTournamentsAsync(accessToken);
+        tournaments = result.Items;
+        errorMessage = result.ErrorMessage;
+        isLoading = false;
+    }
+
+    private static string FormatName(TournamentFormat format) => format switch
+    {
+        TournamentFormat.League => "Liga",
+        TournamentFormat.Cup => "Puchar",
+        TournamentFormat.GroupsAndCup => "Grupy + puchar",
+        _ => format.ToString()
+    };
+
+    private static string StatusLabel(TournamentStatus status) => status switch
+    {
+        TournamentStatus.Draft => "Szkic",
+        TournamentStatus.RegistrationOpen => "Zapisy",
+        TournamentStatus.InProgress => "W trakcie",
+        TournamentStatus.Finished => "Zakończony",
+        _ => status.ToString()
+    };
+}
