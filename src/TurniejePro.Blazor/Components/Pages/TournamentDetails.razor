@@ -7,6 +7,7 @@
 @inject TeamApiClient TeamApi
 @inject AuthSession Session
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 
 <PageTitle>Turniej</PageTitle>
 
@@ -26,6 +27,11 @@ else
             <h1 class="h3 mb-0">@tournament.Name</h1>
             <span class="text-muted">@DisciplineCatalog.NameOf(tournament.Discipline) · @FormatName(tournament.Format)</span>
         </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Pobieranie raportu">
+        <a class="btn btn-sm btn-outline-secondary" href="@ExportUrl("pdf")">Pobierz PDF</a>
+        <a class="btn btn-sm btn-outline-secondary" href="@ExportUrl("csv")">Pobierz CSV</a>
     </div>
 
     @if (successMessage is not null)
@@ -163,6 +169,10 @@ else
     private IReadOnlyList<TeamResponse> acceptedTeams = [];
     private TournamentTab activeTab = TournamentTab.Info;
     private bool isLoading = true;
+    // Plik generuje API (GET /api/v1/tournaments/{id}/export/{format}); odpowiedź ma nagłówek attachment, więc przeglądarka pobiera plik.
+    private string ExportUrl(string format) =>
+        $"{Configuration["Api:BaseUrl"]?.TrimEnd('/')}/api/v1/tournaments/{TournamentId}/export/{format}";
+
     private bool canChangeLifecycle => tournament?.Status is TournamentStatus.Draft or TournamentStatus.RegistrationOpen;
 
     private ManagementAction? confirmAction;
