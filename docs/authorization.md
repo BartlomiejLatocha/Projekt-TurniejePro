@@ -129,6 +129,7 @@ Stan docelowy dla istniejących endpointów. Nowy endpoint dopisujemy do tej tab
 | `POST /api/v1/tournaments/{id}/schedule`, `DELETE /api/v1/tournaments/{id}/schedule` | `ManageTournament` |
 | `PUT /api/v1/tournaments/{id}/matches/{matchId}/result` | `EnterResults` |
 | `GET /api/v1/tournaments/{id}/standings` | `AllowAnonymous` |
+| `GET /api/v1/tournaments/{id}/export/{csv|pdf}` | `AllowAnonymous` |
 
 ## Jak zabezpieczyć nowy endpoint
 

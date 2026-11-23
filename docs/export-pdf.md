@@ -7,3 +7,5 @@ PDF i CSV korzystają z tych samych danych. Generator PDF używa dołączonego d
 ## Integracja z pobieraniem pliku
 
 Wynik `TournamentExportQuery.GetAsync(tournamentId, cancellationToken)` przekaż do `TournamentPdfExport.Generate(data)`. Wynik generatora to bajty pliku o typie `TournamentPdfExport.ContentType` i rozszerzeniu `.pdf`. Sposób pobrania danych i zachowanie dla nieistniejącego turnieju są wspólne z [CSV](export-csv.md).
+
+Plik pobiera się tym samym endpointem co CSV: `GET /api/v1/tournaments/{tournamentId}/export/pdf` (szczegóły w [export-csv.md](export-csv.md#pobieranie-pliku-kan-311)).

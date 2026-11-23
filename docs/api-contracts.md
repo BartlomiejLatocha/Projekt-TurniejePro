@@ -220,6 +220,7 @@ Zasady do zapamiętania:
 | Mecze | `/api/v1/matches` | `UpdateMatchResultRequest` | `MatchResponse` | `TODO` | do wykonania |
 | Tabela | `/api/v1/tournaments/{id}/standings` | brak | `StandingsResponse` | `TODO` | do wykonania |
 | Konta | `/api/v1/auth` | `LoginRequest` | `AuthResponse` | Adam Bednarski | gotowe |
+| Eksport (plik) | `/api/v1/tournaments/{id}/export/{csv|pdf}` | brak | plik `text/csv` albo `application/pdf` | Paweł Szczypior, Radosław Kawa | gotowe (KAN-310, KAN-313, KAN-311) |
 | Moje turnieje i drużyny | `/api/v1/me/tournaments`, `/api/v1/me/teams` | brak | `MyTournamentResponse`, `MyTeamResponse` | Radosław Kawa | gotowe (KAN-304) |
 
 Listy „moich” zasobów (`/api/v1/me/...`) zwracają zwykłą tablicę, bez `PagedResponse`: jeden użytkownik ma kilka, najwyżej kilkadziesiąt turniejów i drużyn, a UI pokazuje je w całości. Kolejność ustala API: najpierw turnieje w trakcie, potem zapisy, szkice i zakończone, w obrębie etapu według terminu rozpoczęcia. Przestrzeń nazw to `Profile`, a nie `Me`, bo `Me` jest słowem kluczowym Visual Basic (reguła CA1716).

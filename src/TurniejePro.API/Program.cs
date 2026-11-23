@@ -13,6 +13,7 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<ScheduleService>();
 builder.Services.AddScoped<MatchResultService>();
 builder.Services.AddScoped<TournamentExportQuery>();
+builder.Services.AddSingleton(TimeProvider.System); // data w nazwie pobieranego pliku; testy mogą podstawić własny zegar
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddApiErrorHandling();
