@@ -36,14 +36,30 @@ public class TournamentRepository : Repository<Tournament>, ITournamentRepositor
         int page,
         int pageSize,
         string? search = null,
+        IReadOnlyCollection<string>? disciplineCodes = null,
         CancellationToken cancellationToken = default)
     {
         var query = DbSet.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var pattern = $"%{search.Trim()}%";
-            query = query.Where(t => EF.Functions.Like(t.Name, pattern) || EF.Functions.Like(t.Discipline, pattern));
+            // SQLite (LIKE, lower) nie rozróżnia wielkości liter tylko dla liter angielskich, więc „żubry” nie znalazłoby
+            // „Żubry”. Dlatego pobieramy same identyfikatory, nazwy i dyscypliny i porównujemy je w aplikacji
+            // (SearchText). Przy skali projektu to kilkaset krótkich wierszy.
+            var codes = disciplineCodes ?? [];
+            var candidates = await DbSet
+                .AsNoTracking()
+                .Select(t => new { t.Id, t.Name, t.Discipline })
+                .ToListAsync(cancellationToken);
+
+            var matchingIds = candidates
+                .Where(t => SearchText.Contains(t.Name, search)
+                    || SearchText.Contains(t.Discipline, search)
+                    || codes.Contains(t.Discipline, StringComparer.OrdinalIgnoreCase))
+                .Select(t => t.Id)
+                .ToList();
+
+            query = query.Where(t => matchingIds.Contains(t.Id));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

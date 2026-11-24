@@ -36,7 +36,7 @@ var app = builder.Build();
 await app.InitializeDatabaseAsync();
 
 // Błędy jako ProblemDetails z polskimi tytułami; wyjątki domenowe → 400/404/409 (docs/api-contracts.md)
-app.UseApiErrorHandling();
+app.UseApiErrorHandling();  
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
