@@ -305,7 +305,7 @@ public class MatchResultServiceTests
         public Task<IReadOnlyList<Tournament>> GetByOrganizerIdAsync(Guid organizerId, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Tournament>>(_tournaments.Where(t => t.OrganizerId == organizerId).ToList());
 
-        public Task<(IReadOnlyList<Tournament> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, string? searchTerm = null, CancellationToken cancellationToken = default)
+        public Task<(IReadOnlyList<Tournament> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, string? searchTerm = null, IReadOnlyCollection<string>? disciplineCodes = null, CancellationToken cancellationToken = default)
             => Task.FromResult<(IReadOnlyList<Tournament> Items, int TotalCount)>((_tournaments.ToList(), _tournaments.Count));
 
         public Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(_tournaments.Any(t => t.Id == id));

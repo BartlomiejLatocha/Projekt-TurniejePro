@@ -188,6 +188,7 @@ public class ScheduleServiceTests
             int pageNumber,
             int pageSize,
             string? searchTerm = null,
+            IReadOnlyCollection<string>? disciplineCodes = null,
             CancellationToken cancellationToken = default)
         {
             var result = _tournaments.ToList();

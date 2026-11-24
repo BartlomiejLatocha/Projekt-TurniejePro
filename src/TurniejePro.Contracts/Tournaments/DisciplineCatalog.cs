@@ -47,6 +47,24 @@ public static class DisciplineCatalog
         return All.FirstOrDefault(d => Simplify(d.Code) == key || Simplify(d.Name) == key);
     }
 
+    /// <summary>
+    /// Kody dyscyplin, których nazwa lub kod zawiera wpisany tekst (bez wielkości liter i polskich znaków),
+    /// np. „siatk” → volleyball, „pilka” → football. Służy wyszukiwarce turniejów. Pusty tekst → pusta lista.
+    /// </summary>
+    public static IReadOnlyList<string> CodesMatching(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
+
+        var key = Simplify(text);
+        return All
+            .Where(d => Simplify(d.Name).Contains(key, StringComparison.Ordinal) || Simplify(d.Code).Contains(key, StringComparison.Ordinal))
+            .Select(d => d.Code)
+            .ToList();
+    }
+
     private static string Simplify(string text)
     {
         var decomposed = text.Trim().Normalize(System.Text.NormalizationForm.FormD);

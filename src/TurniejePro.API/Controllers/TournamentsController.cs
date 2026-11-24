@@ -38,7 +38,9 @@ public class TournamentsController : ControllerBase
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-        var (items, totalCount) = await _unitOfWork.Tournaments.GetPagedAsync(page, pageSize, search, cancellationToken);
+        // Turnieje przechowują kod dyscypliny („volleyball”), a użytkownik wpisuje nazwę z UI („siatkówka”)
+        var disciplineCodes = DisciplineCatalog.CodesMatching(search);
+        var (items, totalCount) = await _unitOfWork.Tournaments.GetPagedAsync(page, pageSize, search, disciplineCodes, cancellationToken);
 
         var responseItems = items.Select(t => t.ToResponse()).ToList();
         var response = new PagedResponse<TournamentResponse>(responseItems, page, pageSize, totalCount);
