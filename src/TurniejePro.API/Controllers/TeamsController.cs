@@ -73,6 +73,7 @@ public class TeamsController : ControllerBase
         }
 
         // Błędne dane drużyny lub zawodników (ArgumentException, BusinessRuleException) zamienia na 400 globalny handler
+        Team.ValidatePlayerCount(request.Players?.Count ?? 0);
         var team = new Team(request.Name, request.TournamentId, captainId, request.ContactEmail);
 
         if (request.Players is not null)
@@ -272,6 +273,84 @@ public class TeamsController : ControllerBase
         Domain.Enums.RegistrationBlockReason.LimitReached => $"Osiągnięto maksymalny limit zarejestrowanych drużyn ({maxTeams}).",
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Nieznany powód blokady zgłoszeń.")
     };
+
+    /// <summary>
+    /// Edytuje drużynę: nazwę, kontakt i skład zawodników (1–30 osób). Może to zrobić kapitan drużyny albo organizator
+    /// turnieju. Po rozpoczęciu turnieju skład i dane drużyny są zablokowane.
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    [Authorize]
+    [ProducesResponseType(typeof(TeamResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTeamRequest request, CancellationToken cancellationToken)
+    {
+        var team = await _unitOfWork.Teams.GetWithPlayersAsync(id, cancellationToken);
+        if (team is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono drużyny",
+                Detail = $"Drużyna o identyfikatorze '{id}' nie istnieje."
+            });
+        }
+
+        var tournament = await _unitOfWork.Tournaments.GetByIdAsync(team.TournamentId, cancellationToken);
+        if (tournament is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Nie znaleziono turnieju",
+                Detail = "Turniej powiązany z tą drużyną nie istnieje."
+            });
+        }
+
+        var isCaptain = Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value, out var userId)
+            && team.CaptainId == userId;
+        if (!isCaptain)
+        {
+            var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+            if (!authorization.Succeeded)
+            {
+                return Forbid();
+            }
+        }
+
+        if (tournament.IsStarted)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Edycja niedozwolona",
+                Detail = "Nie można zmieniać drużyny po rozpoczęciu turnieju."
+            });
+        }
+
+        var nameTaken = !string.Equals(team.Name, request.Name, StringComparison.OrdinalIgnoreCase)
+            && await _unitOfWork.Teams.ExistsByNameInTournamentAsync(team.TournamentId, request.Name, cancellationToken);
+        if (nameTaken)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Nazwa drużyny zajęta",
+                Detail = $"Drużyna o nazwie '{request.Name}' jest już zgłoszona do tego turnieju."
+            });
+        }
+
+        // Liczba zawodników (1–30) i numery na koszulkach: BusinessRuleException zamienia na 400 globalny handler
+        var players = (request.Players ?? []).Select(p => (p.FullName, p.JerseyNumber)).ToList();
+        team.UpdateDetails(request.Name, request.ContactEmail);
+        team.ReplacePlayers(players);
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Ok(team.ToResponse());
+    }
 
     /// <summary>
     /// Wysyła logo drużyny (PNG lub JPG, najwyżej 1 MB). Może je zmienić kapitan drużyny albo organizator turnieju.

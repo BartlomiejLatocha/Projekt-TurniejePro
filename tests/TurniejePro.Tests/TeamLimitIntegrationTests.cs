@@ -70,7 +70,7 @@ public class TeamLimitIntegrationTests : IClassFixture<CustomWebApplicationFacto
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/teams")
         {
-            Content = JsonContent.Create(new CreateTeamRequest(tournamentId, name, ContactEmail: null, Players: null))
+            Content = JsonContent.Create(new CreateTeamRequest(tournamentId, name, ContactEmail: null, Players: TeamTestData.OnePlayer()))
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", new TestTokens(_factory.Services).ForRoles(Roles.User));
 

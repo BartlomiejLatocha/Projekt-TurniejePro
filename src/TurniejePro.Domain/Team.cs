@@ -51,6 +51,40 @@ public class Team
 
     public ICollection<Player> Players { get; set; } = new List<Player>();
 
+    /// <summary>Najmniejsza liczba zawodników w drużynie.</summary>
+    public const int MinPlayers = 1;
+
+    /// <summary>Największa liczba zawodników w drużynie.</summary>
+    public const int MaxPlayers = 30;
+
+    /// <summary>Sprawdza, czy liczba zawodników mieści się w dozwolonym zakresie (<see cref="MinPlayers"/>–<see cref="MaxPlayers"/>).</summary>
+    public static void ValidatePlayerCount(int count)
+    {
+        if (count < MinPlayers)
+        {
+            throw new BusinessRuleException($"Drużyna musi mieć co najmniej {MinPlayers} zawodnika.");
+        }
+
+        if (count > MaxPlayers)
+        {
+            throw new BusinessRuleException($"Drużyna może mieć najwyżej {MaxPlayers} zawodników.");
+        }
+    }
+
+    /// <summary>
+    /// Zastępuje cały skład drużyny. Liczba zawodników i numery na koszulkach są sprawdzane przed zmianą składu.
+    /// </summary>
+    public void ReplacePlayers(IReadOnlyList<(string FullName, int? JerseyNumber)> players)
+    {
+        ValidatePlayerCount(players.Count);
+
+        Players.Clear();
+        foreach (var (fullName, jerseyNumber) in players)
+        {
+            AddPlayer(fullName, jerseyNumber);
+        }
+    }
+
     protected Team()
     {
     }

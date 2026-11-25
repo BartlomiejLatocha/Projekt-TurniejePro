@@ -10,6 +10,10 @@ public class PlayerConfiguration : IEntityTypeConfiguration<Player>
     {
         builder.HasKey(p => p.Id);
 
+        // Id nadaje domena (Guid.NewGuid). Bez tego EF traktuje nowego zawodnika jak istniejącego i przy zmianie składu wysyła UPDATE zamiast INSERT.
+        builder.Property(p => p.Id)
+            .ValueGeneratedNever();
+
         builder.Property(p => p.FullName)
             .IsRequired()
             .HasMaxLength(100);

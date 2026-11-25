@@ -1,0 +1,214 @@
+@page "/teams/{TeamId:guid}/edit"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using TurniejePro.Blazor.Services
+@using TurniejePro.Contracts.Teams
+@using TurniejePro.Contracts.Tournaments
+@implements IDisposable
+@inject AuthSession Session
+@inject TeamApiClient TeamApi
+@inject NavigationManager Navigation
+
+<PageTitle>Edycja drużyny</PageTitle>
+
+<h1>Edycja drużyny</h1>
+
+@if (isLoading)
+{
+    <p><em>Ładowanie drużyny...</em></p>
+}
+else if (team is null)
+{
+    <div class="alert alert-warning" role="status">Nie znaleziono drużyny.</div>
+}
+else if (!canEdit)
+{
+    <div class="alert alert-warning" role="alert">Edycja drużyny jest dostępna tylko dla kapitana tej drużyny albo organizatora turnieju.</div>
+}
+else
+{
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="HandleValidSubmitAsync" class="col-lg-8">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" role="alert" />
+
+        <div class="mb-3">
+            <label class="form-label" for="team-edit-name">Nazwa drużyny</label>
+            <InputText id="team-edit-name" class="form-control" @bind-Value="model.Name" />
+            <ValidationMessage For="() => model.Name" class="text-danger" />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label" for="team-edit-email">E-mail kontaktowy (opcjonalnie)</label>
+            <InputText id="team-edit-email" class="form-control" @bind-Value="model.ContactEmail" />
+            <ValidationMessage For="() => model.ContactEmail" class="text-danger" />
+        </div>
+
+        <h2 class="h5">Zawodnicy</h2>
+        <p class="@(rosterIsValid ? "text-muted" : "text-danger") small" role="status">
+            Liczba zawodników: @model.Players.Count (wymagane od @MinPlayersCount do @MaxPlayersCount).
+        </p>
+
+        @for (var i = 0; i < model.Players.Count; i++)
+        {
+            var index = i;
+            <div class="row g-2 align-items-end mb-2">
+                <div class="col-md-7">
+                    <label class="form-label" for="@NameId(index)">Imię i nazwisko</label>
+                    <InputText id="@NameId(index)" class="form-control" @bind-Value="model.Players[index].FullName" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="@NumberId(index)">Numer</label>
+                    <InputNumber id="@NumberId(index)" class="form-control" @bind-Value="model.Players[index].JerseyNumber" />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger w-100" @onclick="() => RemovePlayer(index)">Usuń</button>
+                </div>
+            </div>
+        }
+
+        <button type="button" class="btn btn-outline-secondary mb-4" disabled="@(model.Players.Count >= MaxPlayersCount)" @onclick="AddPlayer">Dodaj zawodnika</button>
+
+        <div class="mb-3">
+            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Zapisz zmiany</button>
+            <a class="btn btn-outline-secondary ms-2" href="/me/teams">Anuluj</a>
+        </div>
+    </EditForm>
+}
+
+@code {
+    // Te same granice co w domenie (Team.MinPlayers / Team.MaxPlayers); serwer i tak waliduje ponownie.
+    private const int MinPlayersCount = 1;
+    private const int MaxPlayersCount = 30;
+
+    [Parameter]
+    public Guid TeamId { get; set; }
+
+    private TeamResponse? team;
+    private TeamEditForm model = new();
+    private string? errorMessage;
+    private bool isLoading = true;
+    private bool canEdit;
+    private bool isSubmitting;
+
+    private bool rosterIsValid => model.Players.Count is >= MinPlayersCount and <= MaxPlayersCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+
+        team = await TeamApi.GetTeamAsync(TeamId);
+        if (team is not null)
+        {
+            model = new TeamEditForm
+            {
+                Name = team.Name,
+                ContactEmail = team.ContactEmail,
+                Players = team.Players.Select(p => new PlayerEditForm { FullName = p.FullName, JerseyNumber = p.JerseyNumber }).ToList()
+            };
+        }
+
+        UpdateAccess();
+        isLoading = false;
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+
+    private void OnSessionChanged()
+    {
+        UpdateAccess();
+        InvokeAsync(StateHasChanged);
+    }
+
+    // Kapitan drużyny albo administrator (IsOwner). Organizator turnieju może też edytować przez API.
+    private void UpdateAccess() => canEdit = team is not null && Session.IsOwner(team.CaptainId);
+
+    private void AddPlayer()
+    {
+        if (model.Players.Count < MaxPlayersCount)
+        {
+            model.Players.Add(new PlayerEditForm());
+        }
+    }
+
+    private void RemovePlayer(int index) => model.Players.RemoveAt(index);
+
+    private static string NameId(int index) => $"player-name-{index}";
+
+    private static string NumberId(int index) => $"player-number-{index}";
+
+    private async Task HandleValidSubmitAsync()
+    {
+        errorMessage = null;
+
+        if (!rosterIsValid)
+        {
+            errorMessage = $"Drużyna musi mieć od {MinPlayersCount} do {MaxPlayersCount} zawodników.";
+            return;
+        }
+
+        if (model.Players.Any(p => string.IsNullOrWhiteSpace(p.FullName) || p.FullName.Trim().Length < 2))
+        {
+            errorMessage = "Każdy zawodnik musi mieć imię i nazwisko (co najmniej 2 znaki).";
+            return;
+        }
+
+        var accessToken = Session.Current?.AccessToken;
+        if (accessToken is null)
+        {
+            errorMessage = "Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie.";
+            return;
+        }
+
+        isSubmitting = true;
+
+        try
+        {
+            var players = model.Players
+                .Select(p => new CreatePlayerRequest(p.FullName.Trim(), p.JerseyNumber))
+                .ToList();
+            var request = new UpdateTeamRequest(model.Name.Trim(), string.IsNullOrWhiteSpace(model.ContactEmail) ? null : model.ContactEmail.Trim(), players);
+
+            var result = await TeamApi.UpdateTeamAsync(TeamId, request, accessToken);
+            if (result.Team is not null)
+            {
+                Navigation.NavigateTo("/me/teams");
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage;
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private sealed class TeamEditForm
+    {
+        [Required(ErrorMessage = "Podaj nazwę drużyny.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Nazwa drużyny musi mieć od 2 do 100 znaków.")]
+        public string Name { get; set; } = string.Empty;
+
+        [EmailAddress(ErrorMessage = "Podaj poprawny adres e-mail.")]
+        [StringLength(100, ErrorMessage = "Adres e-mail może mieć najwyżej 100 znaków.")]
+        public string? ContactEmail { get; set; }
+
+        public List<PlayerEditForm> Players { get; set; } = [];
+    }
+
+    private sealed class PlayerEditForm
+    {
+        [Required(ErrorMessage = "Podaj imię i nazwisko zawodnika.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Imię i nazwisko musi mieć od 2 do 100 znaków.")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Range(1, 99, ErrorMessage = "Numer musi być z zakresu 1–99.")]
+        public int? JerseyNumber { get; set; }
+    }
+}

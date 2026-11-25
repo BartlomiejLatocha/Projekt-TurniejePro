@@ -77,7 +77,7 @@ public class GroupStageIntegrationTests : IClassFixture<CustomWebApplicationFact
             tournamentId,
             name = $"{name} {Guid.NewGuid():N}",
             contactEmail = (string?)null,
-            players = Array.Empty<object>()
+            players = new[] { new { fullName = "Jan Testowy", jerseyNumber = 1 } }
         });
         var created = await team.Content.ReadFromJsonAsync<TeamResponse>();
         await _client.PatchAsync($"/api/v1/teams/{created!.Id}/accept", null);

@@ -109,7 +109,7 @@ public class TeamLogoIntegrationTests : IClassFixture<CustomWebApplicationFactor
             tournamentId = tournament!.Id,
             name = $"Druzyna {Guid.NewGuid():N}",
             contactEmail = (string?)null,
-            players = Array.Empty<object>()
+            players = new[] { new { fullName = "Jan Testowy", jerseyNumber = 1 } }
         });
         var team = await teamResponse.Content.ReadFromJsonAsync<TeamResponse>();
         return team!.Id;

@@ -52,7 +52,7 @@ public class TeamStatusIntegrationTests : IClassFixture<CustomWebApplicationFact
             TournamentId: tournament!.Id,
             Name: "Team Test Status",
             ContactEmail: "test@team.pl",
-            Players: null
+            Players: TeamTestData.OnePlayer()
         );
         var teamRes = await _client.PostAsJsonAsync("/api/v1/teams", createTeamReq);
         var team = await teamRes.Content.ReadFromJsonAsync<TeamResponse>();

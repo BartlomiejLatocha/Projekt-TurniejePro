@@ -108,6 +108,55 @@ public sealed class TeamApiClient(HttpClient http)
     public Task<TeamRegistrationResult> RejectTeamAsync(Guid teamId, string accessToken, CancellationToken cancellationToken = default) =>
         SendDecisionAsync($"api/v1/teams/{teamId}/reject", accessToken, cancellationToken);
 
+    /// <summary>
+    /// Pobiera drużynę wraz ze składem (publiczny endpoint). Przy błędzie zwraca null.
+    /// </summary>
+    public async Task<TeamResponse?> GetTeamAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<TeamResponse>($"api/v1/teams/{teamId}", cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Zapisuje zmiany drużyny: nazwę, kontakt i skład (1–30 zawodników). Wymaga tokenu kapitana albo organizatora.
+    /// </summary>
+    public async Task<TeamRegistrationResult> UpdateTeamAsync(
+        Guid teamId,
+        UpdateTeamRequest request,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Put, $"api/v1/teams/{teamId}")
+        {
+            Content = JsonContent.Create(request)
+        };
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await http.SendAsync(message, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return TeamRegistrationResult.Failure(await ApiError.ReadMessageAsync(response, cancellationToken));
+            }
+
+            var team = await response.Content.ReadFromJsonAsync<TeamResponse>(cancellationToken);
+            return team is null
+                ? TeamRegistrationResult.Failure("Serwer zwrócił pustą odpowiedź.")
+                : TeamRegistrationResult.Success(team);
+        }
+        catch (HttpRequestException)
+        {
+            return TeamRegistrationResult.Failure("Nie udało się połączyć z serwerem API.");
+        }
+    }
+
     private async Task<TeamRegistrationResult> SendDecisionAsync(string url, string accessToken, CancellationToken cancellationToken)
     {
         using var message = new HttpRequestMessage(HttpMethod.Patch, url);

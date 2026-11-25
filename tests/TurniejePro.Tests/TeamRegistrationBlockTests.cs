@@ -85,7 +85,7 @@ public class TeamRegistrationBlockTests : IClassFixture<CustomWebApplicationFact
     }
 
     private async Task<HttpResponseMessage> RegisterTeamAsync(Guid tournamentId, string name) =>
-        await _client.PostAsJsonAsync("/api/v1/teams", new CreateTeamRequest(tournamentId, name, ContactEmail: null, Players: null));
+        await _client.PostAsJsonAsync("/api/v1/teams", new CreateTeamRequest(tournamentId, name, ContactEmail: null, Players: TeamTestData.OnePlayer()));
 
     private static async Task AssertRegistrationBlockedAsync(HttpResponseMessage response, string expectedDetailFragment)
     {

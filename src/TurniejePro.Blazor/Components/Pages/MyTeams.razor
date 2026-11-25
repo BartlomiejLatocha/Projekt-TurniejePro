@@ -40,6 +40,7 @@ else
                     <th>Etap turnieju</th>
                     <th>Termin</th>
                     <th class="text-center">Zawodnicy</th>
+                    <th>Akcje</th>
                 </tr>
             </thead>
             <tbody>
@@ -52,6 +53,16 @@ else
                         <td>@StatusLabel(team.TournamentStatus)</td>
                         <td>@team.TournamentStartsAt.ToLocalTime().ToString("g")</td>
                         <td class="text-center">@team.PlayersCount</td>
+                        <td>
+                            @if (IsEditable(team.TournamentStatus))
+                            {
+                                <a href="/teams/@team.Id/edit">Edytuj</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted" title="Turniej już rozpoczęty">—</span>
+                            }
+                        </td>
                     </tr>
                 }
             </tbody>
@@ -96,6 +107,10 @@ else
         errorMessage = result.ErrorMessage;
         isLoading = false;
     }
+
+    // Skład i dane drużyny można zmieniać tylko przed startem turnieju (tak jak w API).
+    private static bool IsEditable(TournamentStatus status) =>
+        status is TournamentStatus.Draft or TournamentStatus.RegistrationOpen;
 
     private static string RegistrationLabel(TeamRegistrationStatus status) => status switch
     {

@@ -86,7 +86,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<CustomWebApplicati
             TournamentId: tournamentId,
             Name: "Husaria",
             ContactEmail: "kontakt@husaria.pl",
-            Players: null
+            Players: TeamTestData.OnePlayer()
         );
 
         // Pierwsza rejestracja — sukces
@@ -111,7 +111,7 @@ public class TeamRegistrationIntegrationTests : IClassFixture<CustomWebApplicati
             TournamentId: tournamentId,
             Name: "FC Smok",
             ContactEmail: "smok@krakow.pl",
-            Players: null
+            Players: TeamTestData.OnePlayer()
         );
         await _client.PostAsJsonAsync("/api/v1/teams", request);
 
