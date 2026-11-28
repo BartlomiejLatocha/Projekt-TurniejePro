@@ -27,7 +27,8 @@ public class ScheduleController : ControllerBase
 
     /// <summary>
     /// Generuje i zapisuje terminarz turnieju (ligowy lub pucharowy). Body jest opcjonalne i wybiera rozstawienie
-    /// drużyn: kolejność zgłoszeń (domyślnie), losowanie albo kolejność podana ręcznie.
+    /// drużyn: kolejność zgłoszeń (domyślnie), losowanie albo kolejność podana ręcznie. Opcjonalnie nadaje rundom daty:
+    /// firstRoundDate (nie wcześniej niż koniec zapisów) i daysBetweenRounds (domyślnie 7).
     /// </summary>
     [HttpPost]
     [Authorize]
@@ -58,7 +59,8 @@ public class ScheduleController : ControllerBase
         }
 
         // Terminarz już istnieje (409) i za mało drużyn (400) zgłasza ScheduleService; obsługuje je globalny handler
-        var matches = await _scheduleService.GenerateScheduleAsync(tournamentId, request.ToSeeding(), cancellationToken);
+        // Data 1. rundy przed końcem zapisów (400) też zgłasza ScheduleService
+        var matches = await _scheduleService.GenerateScheduleAsync(tournamentId, request.ToSeeding(), request.ToRoundDates(), cancellationToken);
 
         var contractFormat = (TournamentFormat)tournament.Format;
         var response = matches.ToScheduleResponse(tournamentId, contractFormat);
@@ -141,5 +143,50 @@ public class ScheduleController : ControllerBase
         await _scheduleService.DeleteScheduleAsync(tournamentId, cancellationToken);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Ustawia datę wszystkich meczów rundy albo ją usuwa (date = null). Tylko organizator turnieju lub administrator.
+    /// Odmowa: runda nie istnieje → 404, turniej zakończony → 400 (admin może), runda ma wyniki → 409,
+    /// data przed końcem zapisów → 400.
+    /// </summary>
+    [HttpPut("~/api/v1/tournaments/{tournamentId:guid}/rounds/{round:int}/date")]
+    [Authorize]
+    [ProducesResponseType(typeof(ScheduleRoundResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ScheduleRoundResponse>> SetRoundDate(
+        Guid tournamentId,
+        int round,
+        [FromBody] SetRoundDateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken);
+        if (tournament is null)
+        {
+            return Problem(
+                detail: $"Nie odnaleziono turnieju o ID '{tournamentId}'.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Nie znaleziono turnieju");
+        }
+
+        var authorization = await _authorizationService.AuthorizeAsync(User, tournament, Policies.ManageTournament);
+        if (!authorization.Succeeded)
+        {
+            return Forbid();
+        }
+
+        // Brak rundy (404), zakończony turniej i data przed zapisami (400) oraz runda z wynikami (409) zgłasza ScheduleService
+        var matches = await _scheduleService.SetRoundDateAsync(
+            tournamentId,
+            round,
+            request.Date,
+            asAdmin: User.HasClaim("role", Roles.Admin),
+            cancellationToken);
+
+        return Ok(matches.ToRoundResponse(round));
     }
 }

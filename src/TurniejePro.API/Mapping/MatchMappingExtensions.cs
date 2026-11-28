@@ -31,6 +31,29 @@ public static class MatchMappingExtensions
         };
     }
 
+    /// <summary>
+    /// Daty rund z żądania generowania terminarza: brak <c>firstRoundDate</c> oznacza terminarz bez dat,
+    /// a brak odstępu – co tydzień.
+    /// </summary>
+    public static RoundDates? ToRoundDates(this GenerateScheduleRequest? request) =>
+        request?.FirstRoundDate is { } first
+            ? new RoundDates(first, request.DaysBetweenRounds ?? RoundDates.DefaultDaysBetweenRounds)
+            : null;
+
+    /// <summary>
+    /// Jedna runda terminarza. Data rundy to wspólna data jej meczów (najwcześniejsza, gdyby się różniły),
+    /// a null, gdy żaden mecz nie ma daty.
+    /// </summary>
+    public static ScheduleRoundResponse ToRoundResponse(this IEnumerable<Match> roundMatches, int round)
+    {
+        var matches = roundMatches.OrderBy(m => m.Position).ToList();
+
+        return new ScheduleRoundResponse(
+            Round: round,
+            Matches: matches.Select(m => m.ToResponse()).ToList(),
+            Date: matches.Where(m => m.ScheduledAt is not null).Min(m => m.ScheduledAt));
+    }
+
     public static MatchResponse ToResponse(this Match match)
     {
         return new MatchResponse(
@@ -56,10 +79,7 @@ public static class MatchMappingExtensions
         var rounds = matches
             .GroupBy(m => m.Round)
             .OrderBy(g => g.Key)
-            .Select(g => new ScheduleRoundResponse(
-                Round: g.Key,
-                Matches: g.OrderBy(m => m.Position).Select(m => m.ToResponse()).ToList()
-            ))
+            .Select(g => g.ToRoundResponse(g.Key))
             .ToList();
 
         return new ScheduleResponse(
