@@ -80,7 +80,16 @@ public class ResourceAuthorizationMatrixTests : IClassFixture<CustomWebApplicati
             () => new UpdateMatchResultRequest(2, 1),
             HttpStatusCode.OK,
             NeedsMatch: true,
-            IsUntouched: (db, ids) => db.Matches.Single(m => m.Id == ids.MatchId).HomeScore is null)
+            IsUntouched: (db, ids) => db.Matches.Single(m => m.Id == ids.MatchId).HomeScore is null),
+
+        // KAN-332: data rundy – tylko organizator turnieju lub admin
+        ["PUT /tournaments/{id}/rounds/{round}/date"] = new(
+            HttpMethod.Put,
+            ids => $"/api/v1/tournaments/{ids.TournamentId}/rounds/1/date",
+            () => new SetRoundDateRequest(DateTimeOffset.UtcNow.AddDays(10)),
+            HttpStatusCode.OK,
+            NeedsMatch: true,
+            IsUntouched: (db, ids) => db.Matches.Single(m => m.Id == ids.MatchId).ScheduledAt is null)
     };
 
     private readonly CustomWebApplicationFactory _factory;

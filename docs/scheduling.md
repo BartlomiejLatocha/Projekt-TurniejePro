@@ -49,7 +49,7 @@ Sukces: `201 Created` z `ScheduleResponse`. **Wygenerowanie terminarza rozpoczyn
 - Każda para gra **raz** (bez rewanżów).
 - Wolny los (pauza przy nieparzystej liczbie drużyn) **nie jest zapisywany jako mecz**: zapisujemy tylko pary, w których obie drużyny są znane.
 - `Round` to numer rundy z algorytmu, `Position` to kolejność meczu w rundzie od 1.
-- `ScheduledAt` zostaje puste (terminarz jest rundowy, bez godzin).
+- `ScheduledAt` to data rundy (patrz [Daty rund](#daty-rund)); bez podanej daty zostaje puste.
 
 ### Puchar (drabinka)
 
@@ -57,6 +57,27 @@ Sukces: `201 Created` z `ScheduleResponse`. **Wygenerowanie terminarza rozpoczyn
 - Wolne losy w pierwszej rundzie zapisujemy jako mecz z `IsBye = true` i statusem `Finished` (bez wyniku). Drużyna z wolnym losem jest już wpisana do odpowiedniego meczu następnej rundy.
 - Kolejność drużyn w drabince jest losowana przy generowaniu. Losowanie nie jest zapisywane, więc ponowne generowanie daje inną drabinkę.
 - Awans do następnej rundy: pozycja w następnej rundzie to `(Position + 1) / 2` (dzielenie całkowite). Zwycięzca meczu o nieparzystej `Position` trafia na miejsce gospodarza, o parzystej na miejsce gościa.
+
+### Daty rund
+
+Ustalenia z KAN-332. Data rundy to `ScheduledAt` wszystkich jej meczów (także wolnych losów), bez osobnej tabeli. Daty są opcjonalne: runda bez daty ma w UI „termin do ustalenia”. API przyjmuje i zwraca czas w UTC.
+
+- **Przy generowaniu:** body `POST …/schedule` może zawierać `firstRoundDate` i `daysBetweenRounds` (1–60, domyślnie 7). Runda *n* dostaje datę `firstRoundDate + (n − 1) × daysBetweenRounds` dni. Bez `firstRoundDate` terminarz nie ma dat. Dni dodajemy w czasie polskim (`PolishTime`), więc runda jest zawsze o tej samej godzinie na zegarze, także po zmianie czasu letniego i zimowego (sobota 10:00 zostaje 10:00, choć w UTC to raz 09:00, a raz 08:00).
+- **Liga i puchar:** daty dostają od razu wszystkie rundy, także mecze z drużynami „do ustalenia”.
+- **Grupy + puchar:** daty dostają rundy fazy grupowej. Mecze play-off powstają po fazie grupowej bez daty, a organizator ustawia ją endpointem poniżej.
+- **Zmiana daty rundy:** `PUT /api/v1/tournaments/{id}/rounds/{round}/date` z `SetRoundDateRequest` (`date: null` usuwa datę). Zwraca `ScheduleRoundResponse` rundy.
+- `ScheduleRoundResponse.Date` to wspólna data meczów rundy (null, gdy brak).
+
+| Sytuacja | Odpowiedź |
+|---|---|
+| Data 1. rundy lub nowa data rundy wcześniejsza niż `StartsAt` (koniec zapisów) | `400` |
+| `daysBetweenRounds` spoza 1–60 | `400` (walidacja modelu) |
+| Runda o tym numerze nie istnieje | `404` |
+| Turniej zakończony (organizator; admin może) | `400` |
+| W rundzie jest wpisany wynik (wolne losy się nie liczą) | `409` |
+| Obcy organizator / brak logowania | `403` / `401` |
+
+Kolejności dat między rundami nie wymuszamy: przełożona kolejka może wypaść po następnej.
 
 ### Pobranie i usunięcie
 
@@ -133,6 +154,7 @@ Dodatkowo:
 | `GET /api/v1/tournaments/{id}/schedule` | publiczny | `200` | `404` |
 | `DELETE /api/v1/tournaments/{id}/schedule` | `ManageTournament` | `204` | `401`, `403`, `404`, `409` |
 | `PUT /api/v1/tournaments/{id}/matches/{matchId}/result` | `EnterResults` | `200` | `400`, `401`, `403`, `404`, `409` |
+| `PUT /api/v1/tournaments/{id}/rounds/{round}/date` | `ManageTournament` | `200` | `400`, `401`, `403`, `404`, `409` |
 
 Kontrakty: `TurniejePro.Contracts.Matches` (`ScheduleResponse`, `ScheduleRoundResponse`, `MatchResponse`, `MatchTeamResponse`, `MatchStatus`, `UpdateMatchResultRequest`).
 
@@ -153,3 +175,4 @@ Kontrakty: `TurniejePro.Contracts.Matches` (`ScheduleResponse`, `ScheduleRoundRe
 | `TODO` | Zasady generowania terminarza i wyników z tego dokumentu | `TODO` |
 | 21.11.2026 | Terminarz rozpoczyna turniej; ręczny start wymaga terminarza; wyniki tylko w rozpoczętym turnieju; usunięcie terminarza tylko bez wyników i z powrotem do zapisów | KAN-290 |
 | 21.11.2026 | Edycja turnieju według statusu: Szkic – wszystko, Zapisy – nazwa, termin, limit, W trakcie – nazwa, Zakończony – nic; admin pomija ograniczenia statusu, ale nie reguły spójności | KAN-290 |
+| 28.11.2026 | Daty rund: data rundy = ScheduledAt jej meczów; automat przy generowaniu (data 1. rundy + odstęp) i zmiana daty jednej rundy; nie wcześniej niż koniec zapisów, nie dla rund z wynikami | KAN-332 |

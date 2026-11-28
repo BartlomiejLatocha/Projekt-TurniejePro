@@ -24,9 +24,21 @@ public class ScheduleService
     /// losowo albo ręcznie. W pucharze kolejność rozstawienia wyznacza pary pierwszej rundy i wolne losy, a w lidze
     /// układ kolejek.
     /// </summary>
+    public Task<IReadOnlyList<Match>> GenerateScheduleAsync(
+        Guid tournamentId,
+        ScheduleSeeding seeding,
+        CancellationToken cancellationToken = default) =>
+        GenerateScheduleAsync(tournamentId, seeding, dates: null, cancellationToken);
+
+    /// <summary>
+    /// Jak wyżej, a gdy podano <paramref name="dates"/>, każdy mecz rundy n dostaje datę rundy n (KAN-332).
+    /// W formacie grupy + puchar daty dostają rundy fazy grupowej; mecze play-off powstają później i datę ustawia
+    /// organizator (<see cref="SetRoundDateAsync"/>). Data 1. rundy nie może być wcześniejsza niż koniec zapisów.
+    /// </summary>
     public async Task<IReadOnlyList<Match>> GenerateScheduleAsync(
         Guid tournamentId,
         ScheduleSeeding seeding,
+        RoundDates? dates,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(seeding);
@@ -43,6 +55,11 @@ public class ScheduleService
         if (tournament is null)
         {
             throw new NotFoundException($"Nie odnaleziono turnieju o ID '{tournamentId}'.");
+        }
+
+        if (dates is not null)
+        {
+            EnsureNotBeforeRegistrationEnds(tournament, dates.FirstRoundDate);
         }
 
         // 3. Pobranie zaakceptowanych drużyn
@@ -149,9 +166,14 @@ public class ScheduleService
             }
         }
 
-        // 5. Zapis encji Match w bazie
+        // 5. Daty rund (opcjonalne) i zapis encji Match w bazie. Datę dostają też wolne losy i mecze „do ustalenia”.
         foreach (var match in createdMatches)
         {
+            if (dates is not null)
+            {
+                match.ScheduledAt = dates.For(match.Round);
+            }
+
             await _unitOfWork.Matches.AddAsync(match, cancellationToken);
         }
 
@@ -191,5 +213,69 @@ public class ScheduleService
         tournament.ReturnToRegistration();
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Ustawia (lub usuwa, gdy <paramref name="date"/> to null) datę wszystkich meczów rundy (KAN-332), np. żeby
+    /// przesunąć kolejkę wypadającą w święta albo nadać datę rundom play-off po fazie grupowej.
+    /// Odmawia: runda nie istnieje → 404; turniej zakończony → 400 (admin może); runda ma wpisany wynik → 409;
+    /// data przed końcem zapisów → 400. Kolejności dat między rundami nie wymuszamy.
+    /// </summary>
+    /// <returns>Mecze rundy z nową datą, posortowane według pozycji.</returns>
+    public async Task<IReadOnlyList<Match>> SetRoundDateAsync(
+        Guid tournamentId,
+        int round,
+        DateTimeOffset? date,
+        bool asAdmin = false,
+        CancellationToken cancellationToken = default)
+    {
+        var tournament = await _unitOfWork.Tournaments.GetByIdAsync(tournamentId, cancellationToken)
+            ?? throw new NotFoundException($"Nie odnaleziono turnieju o ID '{tournamentId}'.");
+
+        var matches = (await _unitOfWork.Matches.GetByTournamentIdAsync(tournamentId, cancellationToken))
+            .Where(m => m.Round == round)
+            .OrderBy(m => m.Position)
+            .ToList();
+
+        if (matches.Count == 0)
+        {
+            throw new NotFoundException($"Terminarz turnieju nie ma rundy {round}.");
+        }
+
+        if (tournament.Status == TournamentStatus.Finished && !asAdmin)
+        {
+            throw new BusinessRuleException("Nie można zmieniać dat w zakończonym turnieju.");
+        }
+
+        if (matches.Any(m => !m.IsBye && m.HomeScore is not null))
+        {
+            throw new ConflictException($"Nie można zmienić daty rundy {round}, bo są w niej już wpisane wyniki.");
+        }
+
+        if (date is { } newDate)
+        {
+            EnsureNotBeforeRegistrationEnds(tournament, newDate);
+        }
+
+        foreach (var match in matches)
+        {
+            match.ScheduledAt = date;
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return matches;
+    }
+
+    private static void EnsureNotBeforeRegistrationEnds(Tournament tournament, DateTimeOffset roundDate)
+    {
+        if (roundDate < tournament.StartsAt)
+        {
+            // Komunikat trafia do użytkownika, więc godzina jest w czasie polskim, tak jak w UI
+            var registrationEnds = PolishTime.ToPolish(tournament.StartsAt);
+            throw new BusinessRuleException(string.Create(
+                System.Globalization.CultureInfo.InvariantCulture,
+                $"Data rundy nie może być wcześniejsza niż koniec zapisów ({registrationEnds:dd.MM.yyyy HH:mm})."));
+        }
     }
 }

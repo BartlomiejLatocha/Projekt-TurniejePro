@@ -218,6 +218,7 @@ Zasady do zapamiętania:
 | Turnieje | `/api/v1/tournaments` | `CreateTournamentRequest`, `UpdateTournamentRequest` | `TournamentResponse`, `TournamentDetailsResponse` | Adam Bednarski | gotowe |
 | Drużyny | `/api/v1/teams` | `CreateTeamRequest`, `UpdateTeamRequest` | `TeamResponse` | Adam Bednarski | gotowe |
 | Mecze | `/api/v1/matches` | `UpdateMatchResultRequest` | `MatchResponse` | `TODO` | do wykonania |
+| Terminarz i daty rund | `/api/v1/tournaments/{id}/schedule`, `/api/v1/tournaments/{id}/rounds/{round}/date` | `GenerateScheduleRequest`, `SetRoundDateRequest` | `ScheduleResponse`, `ScheduleRoundResponse` | Radosław Kawa | gotowe (KAN-332) |
 | Tabela | `/api/v1/tournaments/{id}/standings` | brak | `StandingsResponse` | `TODO` | do wykonania |
 | Konta | `/api/v1/auth` | `LoginRequest` | `AuthResponse` | Adam Bednarski | gotowe |
 | Eksport (plik) | `/api/v1/tournaments/{id}/export/{csv|pdf}` | brak | plik `text/csv` albo `application/pdf` | Paweł Szczypior, Radosław Kawa | gotowe (KAN-310, KAN-313, KAN-311) |
